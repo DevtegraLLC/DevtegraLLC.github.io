@@ -1,0 +1,5 @@
+Contact: mailto:security@devtegra.com
+Expires: 2027-07-03T23:59:59.000Z
+Policy: https://devtegra.com/security
+Canonical: https://devtegra.com/.well-known/security.txt
+Preferred-Languages: en

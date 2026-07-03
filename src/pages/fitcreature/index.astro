@@ -1,0 +1,130 @@
+---
+import Base from '../../layouts/Base.astro';
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'SoftwareApplication',
+  name: 'FitCreature',
+  applicationCategory: 'HealthApplication',
+  operatingSystem: 'iOS, Android',
+  description:
+    'A fitness RPG where every real workout shapes a single evolving creature: its appearance, its stats, and how it battles.',
+  publisher: {
+    '@type': 'Organization',
+    name: 'Devtegra, LLC',
+    url: 'https://devtegra.com',
+  },
+};
+
+const loop = [
+  {
+    title: 'Train',
+    body: 'Log workouts in the app or bring them in automatically from Apple Health or Health Connect. Everything works offline; your training never waits on a connection.',
+  },
+  {
+    title: 'Evolve',
+    body: 'Your creature grows through evolution stages, and its battle stats mirror how you actually train: strength, endurance, recovery, dedication, and more.',
+  },
+  {
+    title: 'Battle',
+    body: 'Asynchronous stat showdowns with friends and rivals. Randomly drawn categories decide each round, so every build has a shot.',
+  },
+];
+
+const principles = [
+  {
+    title: 'Never pay-to-win',
+    body: 'Battle strength comes only from training. Purchases are cosmetic: they can dress your creature up, but they can never make it stronger.',
+  },
+  {
+    title: 'Rest is part of the game',
+    body: 'Healthy training patterns are rewarded and recovery matters. Overtraining slows progression instead of being encouraged.',
+  },
+  {
+    title: 'Your data stays yours',
+    body: 'Workouts, health data, body metrics, food logs, and progress photos are processed and stored only on your device. They are never uploaded to our servers.',
+  },
+];
+---
+
+<Base
+  title="FitCreature | The fitness RPG where your workouts raise a creature"
+  description="FitCreature turns real training into a game: every workout shapes an evolving creature that battles for you. Health-first, privacy-first, never pay-to-win. Coming to iOS and Android in 2026."
+  ogImage="/images/fitcreature-icon.png"
+  jsonLd={jsonLd}
+>
+  <section class="bg-gradient-to-b from-indigo-50 to-white">
+    <div class="mx-auto max-w-5xl px-6 py-20 text-center">
+      <span class="mx-auto flex h-28 w-28 items-center justify-center rounded-3xl bg-indigo-500 p-5 shadow-lg shadow-indigo-200">
+        <img src="/images/fitcreature-icon.png" alt="FitCreature app icon" width="88" height="88" class="invert" />
+      </span>
+      <h1 class="mt-8 text-5xl font-bold tracking-tight text-slate-900 sm:text-6xl">FitCreature</h1>
+      <p class="mx-auto mt-5 max-w-2xl text-xl text-slate-600">
+        Every real workout shapes your creature. Train in the real world and watch it
+        evolve, then send it into battle against friends and rivals.
+      </p>
+      <div class="mt-10 flex flex-wrap items-center justify-center gap-4">
+        <span class="rounded-full border border-slate-300 px-6 py-3 text-sm font-medium text-slate-500">
+          App Store &middot; Coming 2026
+        </span>
+        <span class="rounded-full border border-slate-300 px-6 py-3 text-sm font-medium text-slate-500">
+          Google Play &middot; Coming 2026
+        </span>
+      </div>
+    </div>
+  </section>
+
+  <section class="mx-auto max-w-5xl px-6 py-20">
+    <h2 class="text-center text-3xl font-bold tracking-tight text-slate-900">One creature, shaped by real training</h2>
+    <div class="mt-12 grid gap-8 sm:grid-cols-3">
+      {loop.map((step, i) => (
+        <div class="rounded-2xl border border-slate-200 p-8">
+          <span class="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100 font-semibold text-indigo-600">{i + 1}</span>
+          <h3 class="mt-5 text-xl font-semibold text-slate-900">{step.title}</h3>
+          <p class="mt-3 leading-relaxed text-slate-600">{step.body}</p>
+        </div>
+      ))}
+    </div>
+  </section>
+
+  <section class="bg-slate-50">
+    <div class="mx-auto max-w-5xl px-6 py-20">
+      <h2 class="text-center text-3xl font-bold tracking-tight text-slate-900">Built health-first</h2>
+      <div class="mt-12 grid gap-8 sm:grid-cols-3">
+        {principles.map((p) => (
+          <div>
+            <h3 class="text-xl font-semibold text-slate-900">{p.title}</h3>
+            <p class="mt-3 leading-relaxed text-slate-600">{p.body}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <section class="mx-auto max-w-3xl px-6 py-20 text-center">
+    <h2 class="text-3xl font-bold tracking-tight text-slate-900">Privacy by design</h2>
+    <p class="mt-6 leading-relaxed text-slate-600">
+      Your health and fitness data is processed on your device, not on our servers. If
+      you opt in to location features, your device reduces your location to a coarse
+      area code covering roughly 5 kilometers before anything leaves your phone; we
+      never receive your GPS coordinates. Ads are non-personalized, and we do not sell
+      your personal data.
+    </p>
+    <p class="mt-6 text-slate-600">
+      The details live in our
+      <a href="/privacy-policy" class="font-medium text-indigo-600 hover:underline">Privacy Policy</a> and
+      <a href="/consumer-health-data-privacy" class="font-medium text-indigo-600 hover:underline">Consumer Health Data Privacy Policy</a>.
+    </p>
+  </section>
+
+  <section class="mx-auto max-w-5xl px-6 pb-24">
+    <div class="rounded-2xl bg-indigo-500 p-10 text-center text-white">
+      <h2 class="text-2xl font-semibold">Curious about FitCreature?</h2>
+      <p class="mx-auto mt-3 max-w-xl text-indigo-100">
+        We'd love to hear from you. Questions, press, and partnership inquiries all
+        reach a human at
+        <a href="mailto:contact.us@devtegra.com" class="font-medium text-white underline">contact.us@devtegra.com</a>.
+      </p>
+    </div>
+  </section>
+</Base>

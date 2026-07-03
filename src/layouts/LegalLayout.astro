@@ -1,0 +1,11 @@
+---
+import Base from './Base.astro';
+
+const { frontmatter } = Astro.props;
+---
+
+<Base title={`${frontmatter.title} | Devtegra`} description={frontmatter.description}>
+  <article class="prose prose-slate mx-auto max-w-3xl px-6 py-12 prose-headings:tracking-tight prose-a:text-indigo-600">
+    <slot />
+  </article>
+</Base>

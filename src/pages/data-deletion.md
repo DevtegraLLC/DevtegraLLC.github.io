@@ -15,7 +15,7 @@ You have the right to delete your account and your personal data at any time. Th
 
 1. Open the FitCreature app.
 2. Tap your creature's portrait to open your Profile, then tap the gear icon to open Settings.
-3. In the Account section, tap Delete Account.
+3. Tap Account, then tap Delete Account.
 4. Confirm the warning, then sign in again with your Apple or Google account to verify it's you.
 
 Your account and personal data are removed from our active systems as part of this request, and the app also erases its local data on your device. Residual copies in routine backups are overwritten in the normal course of backup rotation; see "What We May Retain" below.

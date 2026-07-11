@@ -1,0 +1,309 @@
+---
+// Standalone recruiting flyer — /apply/animator
+// Self-contained poster: intentionally does NOT use Base.astro (no site nav/footer chrome).
+// Temporary page; discoverable is fine (no noindex).
+const title = 'Rive Keyframe Animator — Paid Gig | Devtegra';
+const description =
+  "We're looking for keyframe animators to bring cutout characters to life in Rive. Paid per animation cycle. Remote, students welcome.";
+const canonical = new URL('/apply/animator', Astro.site);
+---
+
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>{title}</title>
+<meta name="description" content={description} />
+<link rel="canonical" href={canonical} />
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="Devtegra" />
+<meta property="og:title" content={title} />
+<meta property="og:description" content={description} />
+<meta property="og:url" content={canonical} />
+<meta name="twitter:card" content="summary" />
+<meta name="twitter:title" content={title} />
+<meta name="twitter:description" content={description} />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
+<style is:global>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    background: #0f0f14;
+    font-family: 'Inter', sans-serif;
+  }
+  .page {
+    width: 850px;
+    max-width: 100%;
+    margin: 0 auto;
+    background: #1B1C26;
+    color: #F2F0E8;
+    position: relative;
+    padding: 64px 60px 48px;
+  }
+  .eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 2.5px;
+    color: #7FE7C4;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .eyebrow::before {
+    content: "";
+    width: 8px; height: 8px;
+    background: #7FE7C4;
+    border-radius: 50%;
+    display: inline-block;
+  }
+  h1 {
+    font-family: 'Baloo 2', sans-serif;
+    font-weight: 800;
+    font-size: 68px;
+    line-height: 1.03;
+    letter-spacing: -0.5px;
+    margin: 22px 0 18px;
+    color: #F6F4EC;
+  }
+  h1 span { color: #FF8A5C; }
+  .subhead {
+    font-size: 19px;
+    line-height: 1.55;
+    color: #B9B7AE;
+    max-width: 560px;
+    font-weight: 400;
+  }
+
+  .moodrow {
+    display: flex;
+    justify-content: space-between;
+    gap: 18px;
+    margin: 40px 0 8px;
+  }
+  .mood {
+    flex: 1;
+    text-align: center;
+  }
+  .mood svg { width: 100%; height: auto; display: block; }
+  .mood-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    margin-top: 10px;
+  }
+  .moodrow-caption {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11.5px;
+    color: #75736A;
+    letter-spacing: 0.5px;
+    margin-bottom: 34px;
+  }
+
+  .grid {
+    display: flex;
+    gap: 24px;
+    margin: 52px 0 26px;
+  }
+  .card {
+    background: #23242F;
+    border: 1px solid #33343F;
+    border-radius: 14px;
+    padding: 30px 30px;
+    flex: 1.15;
+  }
+  .card.tool-card { flex: 0.85; }
+  .card h2 {
+    font-family: 'Baloo 2', sans-serif;
+    font-size: 20px;
+    font-weight: 700;
+    color: #F6F4EC;
+    margin-bottom: 12px;
+  }
+  .card ul {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 13px;
+  }
+  .card li {
+    font-size: 15.5px;
+    line-height: 1.55;
+    color: #CFCDC3;
+    padding-left: 20px;
+    position: relative;
+  }
+  .card li::before {
+    content: "\25B8";
+    position: absolute;
+    left: 0;
+    color: #FF8A5C;
+  }
+  .tool-card {
+    background: #1F2A28;
+    border: 1px solid #2C4A42;
+  }
+  .tool-card h2 { color: #7FE7C4; }
+  .tool-card p {
+    font-size: 14px;
+    color: #C6E4DA;
+    line-height: 1.55;
+    margin-bottom: 14px;
+  }
+  .tool-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: #0f0f14;
+    background: #7FE7C4;
+    padding: 9px 14px;
+    border-radius: 8px;
+    text-decoration: none;
+    word-break: break-all;
+  }
+  .free-badge {
+    display: inline-block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    color: #7FE7C4;
+    border: 1px solid #3E6157;
+    border-radius: 6px;
+    padding: 3px 8px;
+    margin-bottom: 12px;
+  }
+
+  .pay-strip {
+    margin-top: 26px;
+    background: #2B2418;
+    border: 1px solid #4A3B22;
+    border-radius: 14px;
+    padding: 26px 30px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+  }
+  .pay-strip .label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    color: #E8B368;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .pay-strip .big {
+    font-family: 'Baloo 2', sans-serif;
+    font-size: 26px;
+    font-weight: 700;
+    color: #F6F4EC;
+    white-space: nowrap;
+  }
+  .pay-strip .small {
+    font-size: 13.5px;
+    color: #C9BBA0;
+    max-width: 300px;
+    line-height: 1.5;
+  }
+
+  .tabs-wrap {
+    margin-top: 34px;
+    display: flex;
+    border-top: 2px dashed #3A3B47;
+  }
+  .tab {
+    flex: 1;
+    text-align: center;
+    padding: 18px 10px 4px;
+    border-right: 2px dashed #3A3B47;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .tab.tab-apply { flex: 1.35; }
+  .tab:last-child { border-right: none; }
+  .tab .t1 { font-size: 10.5px; color: #75736A; letter-spacing: 1px; text-transform: uppercase; }
+  .tab .t2 { font-size: 12px; color: #F2F0E8; font-weight: 600; margin-top: 4px; word-break: break-word; }
+
+  .footer-note {
+    margin-top: 28px;
+    font-size: 13px;
+    color: #75736A;
+    line-height: 1.55;
+  }
+  .footer-note b { color: #B9B7AE; font-weight: 600; }
+
+  @media (max-width: 850px) {
+    .page { padding: 44px 24px 36px; }
+    h1 { font-size: 46px; }
+    .subhead { font-size: 17px; }
+    .grid { flex-direction: column; gap: 18px; margin: 38px 0 22px; }
+    .pay-strip { flex-direction: column; align-items: flex-start; gap: 12px; }
+    .pay-strip .big { white-space: normal; }
+    .pay-strip .small { max-width: none; }
+    .tabs-wrap { flex-wrap: wrap; border-top: none; }
+    .tab {
+      flex: 1 1 44%;
+      border-right: none;
+      border-top: 2px dashed #3A3B47;
+      text-align: left;
+      padding: 14px 6px 6px;
+    }
+    .tab.tab-apply { flex: 1 1 100%; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="eyebrow">Paid gig · Remote · Students welcome</div>
+  <h1>Rig it.<br />Animate it.<br />Get paid <span>per cycle.</span></h1>
+  <p class="subhead">We're looking for keyframe animators to bring cutout characters to life, one mood at a time.</p>
+
+  <div class="grid">
+    <div class="card">
+      <h2>What you'll do</h2>
+      <ul>
+        <li>Set up cutout rigs for existing character art: bones and pivots</li>
+        <li>Animate mood and expression cycles on a timeline</li>
+        <li>Bring each mood to life through movement and expression</li>
+        <li>Work one character, one mood, one cycle at a time</li>
+      </ul>
+    </div>
+    <div class="card tool-card">
+      <div class="free-badge">Free · runs in browser</div>
+      <h2>Built in Rive</h2>
+      <p>No install, no license. If you've never opened Rive, the getting-started docs will have you rigging by the end of an afternoon.</p>
+      <a class="tool-link" href="https://rive.app/docs/getting-started/introduction">rive.app/docs/getting-started →</a>
+    </div>
+  </div>
+
+  <div class="pay-strip">
+    <div>
+      <div class="label">How you get paid</div>
+      <div class="big">Paid per animation cycle</div>
+    </div>
+    <div class="small">Rig setup for each character is billed separately, once. After that, every mood cycle you ship is its own paid deliverable.</div>
+  </div>
+
+  <div class="footer-note"><b>Who we're looking for:</b> animation students comfortable with cutout setup and keyframe animation. A short reel, a rough test clip, or even a Rive file you've been messing around in is enough to start a conversation.</div>
+
+  <div class="tabs-wrap">
+    <div class="tab tab-apply"><div class="t1">Apply</div><div class="t2">contact.us@devtegra.com</div></div>
+    <div class="tab"><div class="t1">Subject line</div><div class="t2">Rive Animator</div></div>
+    <div class="tab"><div class="t1">Software</div><div class="t2">Rive (free)</div></div>
+    <div class="tab"><div class="t1">Pay</div><div class="t2">Per cycle</div></div>
+  </div>
+
+</div>
+</body>
+</html>

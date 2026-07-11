@@ -7,16 +7,16 @@ import Base from '../layouts/Base.astro';
 // defended by CORS + honeypot + Turnstile + a Postgres rate limiter. Double opt-in:
 // a confirmation email must be tapped before the address counts.
 //
-// The Turnstile SITE key is public (safe to embed) but comes from Cloudflare after
-// the widget is created. Set PUBLIC_TURNSTILE_SITE_KEY at build. The fallback is
-// Cloudflare's official "always passes" TEST key: safe because the SERVER holds the
-// real Turnstile SECRET, so if a test key ever shipped, siteverify would reject
-// every submission (fail closed) rather than let anything through.
+// The Turnstile SITE key is public (safe to embed in HTML) and is the "FitCreature
+// Turnstile" widget's key. Hardcoded as the default so the static Pages build needs
+// no build-time env var; PUBLIC_TURNSTILE_SITE_KEY can still override it. The real
+// Turnstile SECRET lives server-side on the edge function, so the site key alone
+// grants nothing.
 const SIGNUP_ENDPOINT =
   import.meta.env.PUBLIC_BETA_SIGNUP_URL ||
   'https://oonouwvcegrmudmjkmds.supabase.co/functions/v1/beta_signup';
 const TURNSTILE_SITE_KEY =
-  import.meta.env.PUBLIC_TURNSTILE_SITE_KEY || '1x00000000000000000000AA';
+  import.meta.env.PUBLIC_TURNSTILE_SITE_KEY || '0x4AAAAAAD0AwX_WOU72V94u';
 ---
 
 <Base

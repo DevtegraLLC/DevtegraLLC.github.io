@@ -7,7 +7,7 @@ description: "How Devtegra collects, uses, and shares information across devtegr
 # Privacy Policy
 
 Effective Date: May 28, 2026
-Last Updated: July 3, 2026
+Last Updated: July 11, 2026
 
 This Privacy Policy describes how Devtegra, LLC ("Devtegra," "we," "us," or "our") collects, uses, and shares information when you use our website at devtegra.com and our mobile applications, including FitCreature (collectively, the "Services").
 
@@ -37,6 +37,7 @@ You can request deletion of your account and associated data at any time from wi
 - Timezone. The app records your device's timezone so that daily features (streaks, daily quests, daily goals) reset on your local day.
 - Feedback and reports. If you send in-app feedback, we store the category, title, and message you write, plus your app version. To limit abuse of the feedback channel we store a salted, one-way hash of your IP address; the raw IP address is not stored with your feedback. If you report another user, we store the reason you select, any details you add, and where in the app the report was made.
 - Communications. Emails or support messages you send us. We use these to respond to your inquiries.
+- Beta program signup. If you sign up to be a FitCreature beta tester at devtegra.com/beta, we store the email address you enter and which mobile platform you selected (iPhone, Android, or both). We use this only to contact you about the beta and to prioritize invites by platform. To limit abuse of the signup form we store a salted, one-way hash of your IP address for rate limiting; the raw IP address is not stored. Your address stays unconfirmed until you tap the link in a confirmation email. You can ask us to remove it at any time at contact.us@devtegra.com, and we delete the beta list once the beta program ends.
 
 Your workout log itself (exercises, sets, reps, weights, durations, and notes), your exercise template library, your body metrics, and any food entries are stored only on your device and are never uploaded to our servers. See Section 3.4.
 
@@ -103,6 +104,8 @@ We use infrastructure and service providers to operate FitCreature. We require e
 - Apple. On iOS, Firebase Cloud Messaging relays notifications to Apple's Push Notification service (APNs) to deliver them to your device.
 - Apple and Google (purchase validation). If you buy Power Bites or subscribe, Apple (App Store) or Google (Google Play) processes the payment under their terms. We validate each transaction directly with Apple's App Store Server API or the Google Play Developer API; the transaction identifier crosses to Apple or Google for that validation. We never see or store your payment card details.
 - OpenStreetMap (Nominatim). When a new Gym Zone is created, our server looks up a human-readable area name for it (for example, "Greater Austin Area"); only an approximate area coordinate is sent, with no user identifier. When you change your region by typing a city or zip code, that text is sent to Nominatim to find your general area and is then discarded.
+- Resend. Delivery of the confirmation email when you sign up for the FitCreature beta at devtegra.com/beta. Your email address is processed by Resend solely to send that confirmation message.
+- Cloudflare (Turnstile). The beta signup form uses Cloudflare Turnstile to distinguish humans from bots. Cloudflare receives the information needed to run that check (including your IP address and a challenge token). Turnstile is privacy-preserving; it is not used to track you across sites or to serve advertising.
 - Cloud and hosting providers supporting the above services.
 
 We do not share your personal data with third-party artificial intelligence systems, and we do not use your data to train AI models.

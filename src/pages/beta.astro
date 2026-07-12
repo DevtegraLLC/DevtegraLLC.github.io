@@ -7,6 +7,11 @@ import Base from '../layouts/Base.astro';
 // defended by CORS + honeypot + Turnstile + a Postgres rate limiter. Double opt-in:
 // a confirmation email must be tapped before the address counts.
 //
+// GATED until 2026-07-17 00:00 US Central: until then the page shows a "coming
+// soon" card and the form stays hidden (the reveal script below flips it on the
+// date). The BACKEND is closed independently via the BETA_SIGNUPS_OPEN kill switch
+// (flipped open by hand on the 17th) so a determined visitor can't submit early.
+//
 // The Turnstile SITE key is public (safe to embed in HTML) and is the "FitCreature
 // Turnstile" widget's key. Hardcoded as the default so the static Pages build needs
 // no build-time env var; PUBLIC_TURNSTILE_SITE_KEY can still override it. The real
@@ -21,86 +26,114 @@ const TURNSTILE_SITE_KEY =
 
 <Base
   title="Join the FitCreature Beta"
-  description="Sign up to be a FitCreature beta tester. Every real workout shapes a single evolving creature. Tell us whether you're on iPhone or Android and we'll reach out when a spot opens."
+  description="Sign up to be a FitCreature beta tester. Every real workout shapes a single evolving creature."
   noindex={true}
 >
-  <script is:inline src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
-
   <div class="mx-auto max-w-xl px-6 py-16">
-    <p class="text-xs font-semibold uppercase tracking-widest text-indigo-600">FitCreature Beta</p>
-    <h1 class="mt-3 text-4xl font-bold tracking-tight text-slate-900">Train your creature before anyone else.</h1>
-    <p class="mt-5 leading-relaxed text-slate-600">
-      FitCreature turns your real workouts into a single evolving creature you battle with. We're opening a limited
-      beta. Leave your email and your platform, and we'll reach out when a spot opens.
-    </p>
-
-    <form id="beta-form" class="mt-10 space-y-7" novalidate>
-      <div>
-        <label for="email" class="block text-sm font-medium text-slate-900">Email</label>
-        <input
-          type="email"
-          id="email"
-          name="email"
-          required
-          autocomplete="email"
-          placeholder="you@example.com"
-          class="mt-2 w-full rounded-lg border border-slate-300 px-4 py-3 text-slate-900 shadow-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
-        />
-      </div>
-
-      <fieldset>
-        <legend class="text-sm font-medium text-slate-900">Which phone do you use?</legend>
-        <div class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <label class="flex cursor-pointer items-center gap-3 rounded-lg border border-slate-300 px-4 py-3 text-slate-700 has-[:checked]:border-indigo-500 has-[:checked]:bg-indigo-50 has-[:checked]:text-indigo-900">
-            <input type="radio" name="platform" value="ios" required class="text-indigo-600 focus:ring-indigo-500" />
-            iPhone
-          </label>
-          <label class="flex cursor-pointer items-center gap-3 rounded-lg border border-slate-300 px-4 py-3 text-slate-700 has-[:checked]:border-indigo-500 has-[:checked]:bg-indigo-50 has-[:checked]:text-indigo-900">
-            <input type="radio" name="platform" value="android" class="text-indigo-600 focus:ring-indigo-500" />
-            Android
-          </label>
-          <label class="flex cursor-pointer items-center gap-3 rounded-lg border border-slate-300 px-4 py-3 text-slate-700 has-[:checked]:border-indigo-500 has-[:checked]:bg-indigo-50 has-[:checked]:text-indigo-900">
-            <input type="radio" name="platform" value="both" class="text-indigo-600 focus:ring-indigo-500" />
-            Both
-          </label>
-        </div>
-      </fieldset>
-
-      {/* Honeypot: hidden from humans, tempting to naive bots. A filled value is
-          silently dropped server-side. Off-screen (not display:none) so bots that
-          skip hidden fields still see it. */}
-      <div aria-hidden="true" style="position:absolute;left:-9999px;top:-9999px;height:0;width:0;overflow:hidden">
-        <label for="website">Website (leave blank)</label>
-        <input type="text" id="website" name="website" tabindex="-1" autocomplete="off" />
-      </div>
-
-      <div class="cf-turnstile" data-sitekey={TURNSTILE_SITE_KEY} data-theme="light"></div>
-
-      <button
-        type="submit"
-        id="beta-submit"
-        class="w-full rounded-lg bg-indigo-600 px-5 py-3 font-semibold text-white shadow-sm transition-colors hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-60"
-      >
-        Join the beta
-      </button>
-
-      <p id="beta-message" role="status" aria-live="polite" class="hidden text-sm"></p>
-    </form>
-
-    <div id="beta-success" class="mt-10 hidden rounded-xl border border-emerald-200 bg-emerald-50 p-6">
-      <h2 class="text-lg font-semibold text-emerald-900">Check your inbox</h2>
-      <p class="mt-2 leading-relaxed text-emerald-800">
-        We just sent a confirmation link to your email. Tap it to lock in your spot on the list, and we'll be in
-        touch when the beta opens up. If it isn't there in a minute, check your spam folder.
+    {/* Coming-soon (visible by default; the reveal script hides it on/after the open date) */}
+    <div id="beta-comingsoon">
+      <p class="text-xs font-semibold uppercase tracking-widest text-indigo-600">FitCreature Beta</p>
+      <h1 class="mt-3 text-4xl font-bold tracking-tight text-slate-900">Signups open July 17.</h1>
+      <p class="mt-5 leading-relaxed text-slate-600">
+        We're putting the final touches on the FitCreature beta. Come back on July 17th to leave your email and
+        claim a spot on the list.
       </p>
     </div>
 
-    <p class="mt-10 text-xs leading-relaxed text-slate-400">
-      We use your email only to contact you about the FitCreature beta, and your platform to prioritize invites.
-      See our <a href="/privacy-policy" class="text-indigo-500 hover:underline">Privacy Policy</a>. This form is
-      protected by Cloudflare Turnstile.
-    </p>
+    {/* Open state (hidden until the reveal script runs on/after the open date) */}
+    <div id="beta-open" hidden>
+      <p class="text-xs font-semibold uppercase tracking-widest text-indigo-600">FitCreature Beta</p>
+      <h1 class="mt-3 text-4xl font-bold tracking-tight text-slate-900">Train your creature before anyone else.</h1>
+      <p class="mt-5 leading-relaxed text-slate-600">
+        FitCreature turns your real workouts into a single evolving creature you battle with. We're opening a limited
+        beta. Leave your email and your platform, and we'll reach out when a spot opens.
+      </p>
+
+      <form id="beta-form" class="mt-10 space-y-7" novalidate>
+        <div>
+          <label for="email" class="block text-sm font-medium text-slate-900">Email</label>
+          <input
+            type="email"
+            id="email"
+            name="email"
+            required
+            autocomplete="email"
+            placeholder="you@example.com"
+            class="mt-2 w-full rounded-lg border border-slate-300 px-4 py-3 text-slate-900 shadow-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
+          />
+        </div>
+
+        <fieldset>
+          <legend class="text-sm font-medium text-slate-900">Which phone do you use?</legend>
+          <div class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <label class="flex cursor-pointer items-center gap-3 rounded-lg border border-slate-300 px-4 py-3 text-slate-700 has-[:checked]:border-indigo-500 has-[:checked]:bg-indigo-50 has-[:checked]:text-indigo-900">
+              <input type="radio" name="platform" value="ios" required class="text-indigo-600 focus:ring-indigo-500" />
+              iPhone
+            </label>
+            <label class="flex cursor-pointer items-center gap-3 rounded-lg border border-slate-300 px-4 py-3 text-slate-700 has-[:checked]:border-indigo-500 has-[:checked]:bg-indigo-50 has-[:checked]:text-indigo-900">
+              <input type="radio" name="platform" value="android" class="text-indigo-600 focus:ring-indigo-500" />
+              Android
+            </label>
+            <label class="flex cursor-pointer items-center gap-3 rounded-lg border border-slate-300 px-4 py-3 text-slate-700 has-[:checked]:border-indigo-500 has-[:checked]:bg-indigo-50 has-[:checked]:text-indigo-900">
+              <input type="radio" name="platform" value="both" class="text-indigo-600 focus:ring-indigo-500" />
+              Both
+            </label>
+          </div>
+        </fieldset>
+
+        {/* Honeypot: hidden from humans, tempting to naive bots. A filled value is
+            silently dropped server-side. Off-screen (not display:none) so bots that
+            skip hidden fields still see it. */}
+        <div aria-hidden="true" style="position:absolute;left:-9999px;top:-9999px;height:0;width:0;overflow:hidden">
+          <label for="website">Website (leave blank)</label>
+          <input type="text" id="website" name="website" tabindex="-1" autocomplete="off" />
+        </div>
+
+        <div class="cf-turnstile" data-sitekey={TURNSTILE_SITE_KEY} data-theme="light"></div>
+
+        <button
+          type="submit"
+          id="beta-submit"
+          class="w-full rounded-lg bg-indigo-600 px-5 py-3 font-semibold text-white shadow-sm transition-colors hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          Join the beta
+        </button>
+
+        <p id="beta-message" role="status" aria-live="polite" class="hidden text-sm"></p>
+      </form>
+
+      <div id="beta-success" class="mt-10 hidden rounded-xl border border-emerald-200 bg-emerald-50 p-6">
+        <h2 class="text-lg font-semibold text-emerald-900">Check your inbox</h2>
+        <p class="mt-2 leading-relaxed text-emerald-800">
+          We just sent a confirmation link to your email. Tap it to lock in your spot on the list, and we'll be in
+          touch when the beta opens up. If it isn't there in a minute, check your spam folder.
+        </p>
+      </div>
+
+      <p class="mt-10 text-xs leading-relaxed text-slate-400">
+        We use your email only to contact you about the FitCreature beta, and your platform to prioritize invites.
+        See our <a href="/privacy-policy" class="text-indigo-500 hover:underline">Privacy Policy</a>. This form is
+        protected by Cloudflare Turnstile.
+      </p>
+    </div>
   </div>
+
+  {/* Reveal gate: runs synchronously at parse. Default stays "coming soon" (safe if
+      JS is off or fails). Opens at 00:00 July 17, 2026 US Central (CDT = UTC-5). */}
+  <script is:inline>
+    (function () {
+      var OPEN_AT = Date.parse('2026-07-17T05:00:00Z');
+      if (Date.now() >= OPEN_AT) {
+        var cs = document.getElementById('beta-comingsoon');
+        var op = document.getElementById('beta-open');
+        if (cs) cs.hidden = true;
+        if (op) op.hidden = false;
+      }
+    })();
+  </script>
+
+  {/* Turnstile loads after the reveal so it scans a visible widget once open. */}
+  <script is:inline src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 
   <script define:vars={{ SIGNUP_ENDPOINT }}>
     const form = document.getElementById('beta-form');

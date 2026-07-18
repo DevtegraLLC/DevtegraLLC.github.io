@@ -1,0 +1,45 @@
+---
+import Base from '../../layouts/Base.astro';
+
+// Beta confirm redirector. The confirmation email links HERE (a devtegra.com URL,
+// matching the From domain) instead of straight to the supabase.co function — a
+// sender/link domain MATCH reads far less like phishing to spam filters and to
+// testers than a raw cloud-function URL carrying a long token. This page reads
+// ?token and forwards the browser to the beta_confirm edge function, which
+// validates + 302s to /beta/confirm?status=. TEMPORARY (removed at teardown).
+//
+// The function URL is public (safe to embed); PUBLIC_BETA_CONFIRM_FN can override.
+const CONFIRM_FN =
+  import.meta.env.PUBLIC_BETA_CONFIRM_FN ||
+  'https://oonouwvcegrmudmjkmds.supabase.co/functions/v1/beta_confirm';
+---
+
+<Base
+  title="Confirming your FitCreature beta signup"
+  description="Confirming your FitCreature beta signup."
+  noindex={true}
+>
+  <div class="mx-auto max-w-xl px-6 py-24 text-center">
+    <h1 class="text-xl font-semibold text-slate-900">Confirming your email...</h1>
+    <p class="mt-3 text-sm text-slate-500">
+      One moment while we finish confirming your FitCreature beta signup.
+    </p>
+    <p class="mt-6 text-sm text-slate-500">
+      Not moving? <a id="verify-continue" href="/beta" class="font-medium text-indigo-600 hover:underline">Tap here to continue &rarr;</a>
+    </p>
+  </div>
+
+  <script define:vars={{ CONFIRM_FN }}>
+    (function () {
+      const token = new URLSearchParams(window.location.search).get('token') || '';
+      if (!token) {
+        window.location.replace('/beta/confirm?status=invalid');
+        return;
+      }
+      const dest = CONFIRM_FN + '?token=' + encodeURIComponent(token);
+      const link = document.getElementById('verify-continue');
+      if (link) link.href = dest;
+      window.location.replace(dest);
+    })();
+  </script>
+</Base>

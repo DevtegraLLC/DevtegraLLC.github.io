@@ -46,10 +46,37 @@ const TURNSTILE_SITE_KEY =
       <h1 class="mt-3 text-4xl font-bold tracking-tight text-slate-900">Train your creature before anyone else.</h1>
       <p class="mt-5 leading-relaxed text-slate-600">
         FitCreature turns your real workouts into a single evolving creature you battle with. We're opening a limited
-        beta. Leave your email and your platform, and we'll reach out when a spot opens.
+        beta. Tell us a little about how you train, and we'll reach out when a spot opens.
       </p>
 
       <form id="beta-form" class="mt-10 space-y-7" novalidate>
+        <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
+          <div>
+            <label for="first-name" class="block text-sm font-medium text-slate-900">First name</label>
+            <input
+              type="text"
+              id="first-name"
+              name="firstName"
+              required
+              autocomplete="given-name"
+              placeholder="Alex"
+              class="mt-2 w-full rounded-lg border border-slate-300 px-4 py-3 text-slate-900 shadow-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
+            />
+          </div>
+          <div>
+            <label for="last-name" class="block text-sm font-medium text-slate-900">Last name</label>
+            <input
+              type="text"
+              id="last-name"
+              name="lastName"
+              required
+              autocomplete="family-name"
+              placeholder="Rivera"
+              class="mt-2 w-full rounded-lg border border-slate-300 px-4 py-3 text-slate-900 shadow-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
+            />
+          </div>
+        </div>
+
         <div>
           <label for="email" class="block text-sm font-medium text-slate-900">Email</label>
           <input
@@ -77,6 +104,70 @@ const TURNSTILE_SITE_KEY =
             <label class="flex cursor-pointer items-center gap-3 rounded-lg border border-slate-300 px-4 py-3 text-slate-700 has-[:checked]:border-indigo-500 has-[:checked]:bg-indigo-50 has-[:checked]:text-indigo-900">
               <input type="radio" name="platform" value="both" class="text-indigo-600 focus:ring-indigo-500" />
               Both
+            </label>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend class="text-sm font-medium text-slate-900">Do you use a fitness tracker?</legend>
+          <p class="mt-1 text-xs text-slate-500">Apple Watch, Fitbit, Garmin, a phone app, anything like that.</p>
+          <div class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <label class="flex cursor-pointer items-center gap-3 rounded-lg border border-slate-300 px-4 py-3 text-slate-700 has-[:checked]:border-indigo-500 has-[:checked]:bg-indigo-50 has-[:checked]:text-indigo-900">
+              <input type="radio" name="tracker" value="yes" class="text-indigo-600 focus:ring-indigo-500" />
+              Yes
+            </label>
+            <label class="flex cursor-pointer items-center gap-3 rounded-lg border border-slate-300 px-4 py-3 text-slate-700 has-[:checked]:border-indigo-500 has-[:checked]:bg-indigo-50 has-[:checked]:text-indigo-900">
+              <input type="radio" name="tracker" value="no" class="text-indigo-600 focus:ring-indigo-500" />
+              No
+            </label>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend class="text-sm font-medium text-slate-900">How do you see yourself training?</legend>
+          <p class="mt-1 text-xs leading-relaxed text-slate-500">
+            Pick any that feel like you. We use this to invite a well-rounded mix of testers, so we can spot issues
+            that only show up for, say, runners or yoga regulars. It shapes who we reach out to, never your creature
+            or the game.
+          </p>
+          <div class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <label class="flex cursor-pointer items-center gap-3 rounded-lg border border-slate-300 px-4 py-3 text-slate-700 has-[:checked]:border-indigo-500 has-[:checked]:bg-indigo-50 has-[:checked]:text-indigo-900">
+              <input type="checkbox" name="exercise" value="walking" class="rounded text-indigo-600 focus:ring-indigo-500" />
+              Walking
+            </label>
+            <label class="flex cursor-pointer items-center gap-3 rounded-lg border border-slate-300 px-4 py-3 text-slate-700 has-[:checked]:border-indigo-500 has-[:checked]:bg-indigo-50 has-[:checked]:text-indigo-900">
+              <input type="checkbox" name="exercise" value="running" class="rounded text-indigo-600 focus:ring-indigo-500" />
+              Running
+            </label>
+            <label class="flex cursor-pointer items-center gap-3 rounded-lg border border-slate-300 px-4 py-3 text-slate-700 has-[:checked]:border-indigo-500 has-[:checked]:bg-indigo-50 has-[:checked]:text-indigo-900">
+              <input type="checkbox" name="exercise" value="cycling" class="rounded text-indigo-600 focus:ring-indigo-500" />
+              Cycling
+            </label>
+            <label class="flex cursor-pointer items-center gap-3 rounded-lg border border-slate-300 px-4 py-3 text-slate-700 has-[:checked]:border-indigo-500 has-[:checked]:bg-indigo-50 has-[:checked]:text-indigo-900">
+              <input type="checkbox" name="exercise" value="weight_training" class="rounded text-indigo-600 focus:ring-indigo-500" />
+              Weight training
+            </label>
+            <label class="flex cursor-pointer items-center gap-3 rounded-lg border border-slate-300 px-4 py-3 text-slate-700 has-[:checked]:border-indigo-500 has-[:checked]:bg-indigo-50 has-[:checked]:text-indigo-900">
+              <input type="checkbox" name="exercise" value="fitness_classes" class="rounded text-indigo-600 focus:ring-indigo-500" />
+              Fitness classes
+            </label>
+            <label class="flex cursor-pointer items-center gap-3 rounded-lg border border-slate-300 px-4 py-3 text-slate-700 has-[:checked]:border-indigo-500 has-[:checked]:bg-indigo-50 has-[:checked]:text-indigo-900">
+              <input type="checkbox" name="exercise" value="yoga" class="rounded text-indigo-600 focus:ring-indigo-500" />
+              Yoga
+            </label>
+            <label class="flex cursor-pointer items-center gap-3 rounded-lg border border-slate-300 px-4 py-3 text-slate-700 has-[:checked]:border-indigo-500 has-[:checked]:bg-indigo-50 has-[:checked]:text-indigo-900">
+              <input type="checkbox" name="exercise" value="sport_practice" class="rounded text-indigo-600 focus:ring-indigo-500" />
+              Sport practice
+            </label>
+          </div>
+          <div class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <label class="flex cursor-pointer items-center gap-3 rounded-lg border border-dashed border-slate-300 px-4 py-3 text-slate-700 has-[:checked]:border-indigo-500 has-[:checked]:bg-indigo-50 has-[:checked]:text-indigo-900">
+              <input type="checkbox" id="exercise-all" class="rounded text-indigo-600 focus:ring-indigo-500" />
+              All of the above
+            </label>
+            <label class="flex cursor-pointer items-center gap-3 rounded-lg border border-dashed border-slate-300 px-4 py-3 text-slate-700 has-[:checked]:border-indigo-500 has-[:checked]:bg-indigo-50 has-[:checked]:text-indigo-900">
+              <input type="checkbox" id="exercise-none" class="rounded text-indigo-600 focus:ring-indigo-500" />
+              None of the above
             </label>
           </div>
         </fieldset>
@@ -111,9 +202,10 @@ const TURNSTILE_SITE_KEY =
       </div>
 
       <p class="mt-10 text-xs leading-relaxed text-slate-400">
-        We use your email only to contact you about the FitCreature beta, and your platform to prioritize invites.
-        See our <a href="/privacy-policy" class="text-indigo-500 hover:underline">Privacy Policy</a>. This form is
-        protected by Cloudflare Turnstile.
+        We use your name and email only to contact you about the FitCreature beta, your platform to prioritize
+        invites, and your tracker and training answers to invite a well-rounded mix of testers. None of it affects
+        the app or the game. See our <a href="/privacy-policy" class="text-indigo-500 hover:underline">Privacy
+        Policy</a>. This form is protected by Cloudflare Turnstile.
       </p>
     </div>
   </div>
@@ -141,6 +233,35 @@ const TURNSTILE_SITE_KEY =
     const message = document.getElementById('beta-message');
     const success = document.getElementById('beta-success');
 
+    // Exercise-focus "All / None of the above" affordances. UI-only: they are
+    // never sent as values (the payload carries only the checked category boxes,
+    // which the edge function re-validates against its allow-list).
+    const exerciseBoxes = Array.from(form.querySelectorAll('input[name="exercise"]'));
+    const allBox = document.getElementById('exercise-all');
+    const noneBox = document.getElementById('exercise-none');
+
+    exerciseBoxes.forEach((box) =>
+      box.addEventListener('change', () => {
+        const checked = exerciseBoxes.filter((b) => b.checked).length;
+        if (allBox) allBox.checked = checked === exerciseBoxes.length;
+        if (noneBox && checked > 0) noneBox.checked = false;
+      })
+    );
+    if (allBox) {
+      allBox.addEventListener('change', () => {
+        exerciseBoxes.forEach((b) => { b.checked = allBox.checked; });
+        if (allBox.checked && noneBox) noneBox.checked = false;
+      });
+    }
+    if (noneBox) {
+      noneBox.addEventListener('change', () => {
+        if (noneBox.checked) {
+          exerciseBoxes.forEach((b) => { b.checked = false; });
+          if (allBox) allBox.checked = false;
+        }
+      });
+    }
+
     function showMessage(text, tone) {
       message.textContent = text;
       message.className =
@@ -152,12 +273,19 @@ const TURNSTILE_SITE_KEY =
       e.preventDefault();
       message.classList.add('hidden');
 
+      const firstName = document.getElementById('first-name').value.trim();
+      const lastName = document.getElementById('last-name').value.trim();
       const email = document.getElementById('email').value.trim();
       const platformEl = form.querySelector('input[name="platform"]:checked');
+      const trackerEl = form.querySelector('input[name="tracker"]:checked');
+      const usesFitnessTracker = trackerEl ? trackerEl.value === 'yes' : null;
+      const exerciseTypes = exerciseBoxes.filter((b) => b.checked).map((b) => b.value);
       const website = document.getElementById('website').value;
       const turnstileToken =
         (form.querySelector('[name="cf-turnstile-response"]') || {}).value || '';
 
+      if (!firstName) return showMessage('Please enter your first name.', 'error');
+      if (!lastName) return showMessage('Please enter your last name.', 'error');
       if (!email) return showMessage('Please enter your email.', 'error');
       if (!platformEl) return showMessage('Please pick your phone.', 'error');
       if (!turnstileToken) return showMessage('Please complete the verification and try again.', 'error');
@@ -170,8 +298,12 @@ const TURNSTILE_SITE_KEY =
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            firstName,
+            lastName,
             email,
             platform: platformEl.value,
+            usesFitnessTracker,
+            exerciseTypes,
             website,
             turnstileToken,
           }),

@@ -7,7 +7,7 @@ description: "The terms that govern your use of Devtegra's website and mobile ap
 # Terms of Service
 
 Effective Date: May 28, 2026
-Last Updated: July 3, 2026
+Last Updated: July 29, 2026
 
 Welcome to Devtegra. These Terms of Service ("Terms") are a binding agreement between you and Devtegra, LLC ("Devtegra," "we," "us," or "our") governing your use of our website at devtegra.com and our mobile applications, including FitCreature (collectively, the "Services").
 
@@ -149,7 +149,7 @@ Sections that by their nature should survive termination will survive, including
 
 These Terms are governed by the laws of the State of Texas, without regard to its conflict of law provisions.
 
-Any dispute arising out of or relating to these Terms or the Services will be resolved in the state or federal courts located in Williamson County, Texas, and you consent to the personal jurisdiction of those courts. Nothing in this section prevents either party from seeking injunctive relief in any court of competent jurisdiction.
+Any dispute arising out of or relating to these Terms or the Services will be resolved in the state or federal courts located in Travis County, Texas, and you consent to the personal jurisdiction of those courts. Nothing in this section prevents either party from seeking injunctive relief in any court of competent jurisdiction.
 
 ## 14. Changes to These Terms
 

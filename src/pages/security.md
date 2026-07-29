@@ -7,7 +7,7 @@ description: "How Devtegra secures FitCreature and devtegra.com, and how to repo
 # Security Vulnerability Disclosure Policy
 
 Effective Date: June 20, 2026
-Last Updated: July 3, 2026
+Last Updated: July 29, 2026
 
 Devtegra, LLC ("Devtegra," "we," "us," or "our") welcomes reports from security researchers and members of the public who discover potential vulnerabilities in our products, including the FitCreature mobile app and its backend services. This policy explains what is in scope, how to report a problem, what we ask of you, and the limited authorization we extend to good-faith research. Please read it in full before you begin. By submitting a report or conducting research on our systems, you agree to this policy.
 
@@ -93,7 +93,7 @@ The Services are provided "as is" for purposes of your research. Devtegra makes 
 
 ## Governing law
 
-This policy, and any dispute relating to your participation in it, is governed by the laws of the State of Texas, without regard to its conflict-of-laws principles. The exclusive venue for any such dispute is the state and federal courts located in Williamson County, Texas, and you consent to the personal jurisdiction of those courts. Devtegra may seek injunctive relief in any court of competent jurisdiction.
+This policy, and any dispute relating to your participation in it, is governed by the laws of the State of Texas, without regard to its conflict-of-laws principles. The exclusive venue for any such dispute is the state and federal courts located in Travis County, Texas, and you consent to the personal jurisdiction of those courts. Devtegra may seek injunctive relief in any court of competent jurisdiction.
 
 ## Changes to this policy
 

@@ -7,7 +7,7 @@ description: "The terms that govern your use of Devtegra's website and mobile ap
 # Terms of Service
 
 Effective Date: May 28, 2026
-Last Updated: July 29, 2026
+Last Updated: August 13, 2026
 
 Welcome to Devtegra. These Terms of Service ("Terms") are a binding agreement between you and Devtegra, LLC ("Devtegra," "we," "us," or "our") governing your use of our website at devtegra.com and our mobile applications, including FitCreature (collectively, the "Services").
 
@@ -78,9 +78,10 @@ FitCreature includes two in-app currencies. "Flex" is a soft currency obtained t
 
 ### 5.5 Premium Subscription (Auto-Renewing)
 
-FitCreature offers an optional auto-renewing monthly subscription ("Premium"). Premium removes advertising, grants a fixed amount of Power Bites (the amount is shown in the app) each subscription month, and unlocks the premium reward track of the seasonal Battle Pass. Premium benefits are cosmetic, vanity, or convenience only and never affect battle outcomes, matchmaking, or battle stats.
+FitCreature offers an optional auto-renewing subscription ("Premium"), available as a monthly plan or a yearly plan. Both plans include the same benefits: Premium removes advertising, grants a fixed amount of Power Bites (the amount is shown in the app) for each month of the subscription, and unlocks the premium reward track of the seasonal Battle Pass. On the yearly plan, the Power Bites are delivered in monthly installments over the paid year, not as a single lump sum. Premium benefits are cosmetic, vanity, or convenience only and never affect battle outcomes, matchmaking, or battle stats.
 
-- Billing and renewal. The subscription is billed to your Apple or Google account at the price shown at the point of purchase. It renews automatically each month until you cancel.
+- Billing and renewal. The subscription is billed to your Apple or Google account at the price shown at the point of purchase. It renews automatically at the end of each billing period (monthly or yearly, depending on your chosen plan) until you cancel.
+- Plan changes. You can switch between the monthly and yearly plans. A plan change takes effect at your next renewal date under the store's rules; the store shows the details before you confirm, and you keep your current plan until then.
 - Cancellation. You can cancel at any time in your device's subscription settings (App Store subscriptions on Apple devices, Google Play subscriptions on Android). Cancellation takes effect at the end of the current billing period; you keep Premium benefits until then. Deleting the app does not cancel a subscription.
 - Free trials and offers. If a free trial or introductory offer is available, its terms are shown before you subscribe. Unless you cancel at least 24 hours before the trial ends, the subscription converts to a paid subscription. Where a trial is free, the monthly Power Bites grant begins with your first paid subscription month.
 - Price changes. If the subscription price changes, the store will notify you under its rules and, where required, ask for your consent before charging the new price.

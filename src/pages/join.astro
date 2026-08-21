@@ -144,20 +144,32 @@ const SCAN_ENDPOINT =
     })
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
-        if (!data || data.status !== 'ok' || data.code_type !== 'partner') return;
-        if (typeof data.partner_name === 'string' && data.partner_name.length > 0) {
+        if (!data || data.status !== 'ok') return;
+        if (data.code_type === 'partner') {
+          if (typeof data.partner_name === 'string' && data.partner_name.length > 0) {
+            document.getElementById('join-headline').textContent =
+              `A welcome from ${data.partner_name}.`;
+            document.getElementById('join-blurb').textContent =
+              `${data.partner_name} partners with FitCreature, the fitness RPG where ` +
+              `every real workout shapes an evolving creature. Enter their code when ` +
+              `you create your account to unlock their welcome perks in the app.`;
+          }
+          if (typeof data.partner_logo_url === 'string' && data.partner_logo_url.startsWith('https://')) {
+            const logo = document.getElementById('join-partner-logo');
+            logo.src = data.partner_logo_url;
+            logo.alt = typeof data.partner_name === 'string' ? `${data.partner_name} logo` : 'Partner logo';
+            logo.hidden = false;
+          }
+        } else if (data.code_type === 'promo') {
+          // Campaign QRs (event booth, stickers, streamer drops) are promo
+          // codes: no "someone invited you" framing, and the reward lands at
+          // redemption rather than a level gate.
           document.getElementById('join-headline').textContent =
-            `A welcome from ${data.partner_name}.`;
+            'You found a FitCreature code.';
           document.getElementById('join-blurb').textContent =
-            `${data.partner_name} partners with FitCreature, the fitness RPG where ` +
-            `every real workout shapes an evolving creature. Enter their code when ` +
-            `you create your account to unlock their welcome perks in the app.`;
-        }
-        if (typeof data.partner_logo_url === 'string' && data.partner_logo_url.startsWith('https://')) {
-          const logo = document.getElementById('join-partner-logo');
-          logo.src = data.partner_logo_url;
-          logo.alt = typeof data.partner_name === 'string' ? `${data.partner_name} logo` : 'Partner logo';
-          logo.hidden = false;
+            'FitCreature is the fitness RPG where every real workout shapes an ' +
+            'evolving creature. Enter this code when you create your account ' +
+            '(or redeem it later in the app) to unlock a welcome reward.';
         }
       })
       .catch(() => {

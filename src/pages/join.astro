@@ -12,8 +12,16 @@ import Base from '../layouts/Base.astro';
 //
 // Fully static: the ?ref code is read and validated client-side, so page
 // load never touches a backend and a traffic spike is just CDN file serving.
-// The code alphabet mirrors generate_referral_code() in the app's Postgres
-// (uppercase alphanumeric, ambiguous 0/O/1/I/L stripped).
+// AFTER render, a fire-and-forget POST to the public `ref_scan` edge function
+// (F89 Phase 2) counts the scan and, for a PARTNER code, returns branding
+// {partner_name, partner_logo_url} that upgrades the headline in place. Any
+// failure of that call costs a count + branding, never the page.
+//
+// Codes are 8 uppercase alphanumerics — wider than the generated-code
+// alphabet on purpose: hand-assigned partner/promo codes may use 0/O/1/I/L.
+const SCAN_ENDPOINT =
+  import.meta.env.PUBLIC_REF_SCAN_URL ||
+  'https://oonouwvcegrmudmjkmds.supabase.co/functions/v1/ref_scan';
 ---
 
 <Base
@@ -28,8 +36,9 @@ import Base from '../layouts/Base.astro';
 
       {/* Referred state (shown when ?ref carries a well-formed code) */}
       <div id="join-referred" hidden>
-        <h1 class="mt-8 text-4xl font-bold tracking-tight text-slate-900">You've been invited.</h1>
-        <p class="mt-4 leading-relaxed text-slate-600">
+        <img id="join-partner-logo" src="" alt="" width="72" height="72" class="mx-auto mt-6 rounded-xl" hidden />
+        <h1 id="join-headline" class="mt-8 text-4xl font-bold tracking-tight text-slate-900">You've been invited.</h1>
+        <p id="join-blurb" class="mt-4 leading-relaxed text-slate-600">
           Someone wants you training beside them in FitCreature, the fitness RPG where
           every real workout shapes an evolving creature. This is their referral code.
           Enter it when you create your account and you'll both earn in-game rewards.
@@ -94,28 +103,65 @@ import Base from '../layouts/Base.astro';
   </section>
 </Base>
 
-<script>
-  // Codes are 8 chars from the app's referral alphabet (0/O/1/I/L stripped).
-  const CODE_RE = /^[23456789ABCDEFGHJKMNPQRSTUVWXYZ]{8}$/;
+<script define:vars={{ SCAN_ENDPOINT }}>
+  // 8 uppercase alphanumerics — wider than the generated-code alphabet on
+  // purpose (hand-assigned partner/promo codes may use 0/O/1/I/L).
+  const CODE_RE = /^[A-Z0-9]{8}$/;
 
   const code = (new URLSearchParams(location.search).get('ref') || '')
     .trim()
     .toUpperCase();
 
   if (CODE_RE.test(code)) {
-    document.getElementById('join-generic')!.hidden = true;
-    document.getElementById('join-referred')!.hidden = false;
-    document.getElementById('join-code')!.textContent = code;
+    document.getElementById('join-generic').hidden = true;
+    document.getElementById('join-referred').hidden = false;
+    document.getElementById('join-code').textContent = code;
 
-    const copyBtn = document.getElementById('join-copy') as HTMLButtonElement;
+    const copyBtn = document.getElementById('join-copy');
     copyBtn.addEventListener('click', async () => {
       try {
         await navigator.clipboard.writeText(code);
-        document.getElementById('join-copied')!.hidden = false;
+        document.getElementById('join-copied').hidden = false;
       } catch {
         // Clipboard can be unavailable (permissions, old browsers) — the
         // code stays visible on screen either way.
       }
     });
+
+    // Fire-and-forget scan log AFTER render. A partner code's response
+    // upgrades the headline to the partner's branding in place; any failure
+    // (offline, rate-limited, endpoint down) changes nothing on the page.
+    const ua = navigator.userAgent || '';
+    const platform = /android/i.test(ua)
+      ? 'android'
+      : /iphone|ipad|ipod/i.test(ua)
+        ? 'ios'
+        : 'other';
+    fetch(SCAN_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code, platform }),
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!data || data.status !== 'ok' || data.code_type !== 'partner') return;
+        if (typeof data.partner_name === 'string' && data.partner_name.length > 0) {
+          document.getElementById('join-headline').textContent =
+            `A welcome from ${data.partner_name}.`;
+          document.getElementById('join-blurb').textContent =
+            `${data.partner_name} partners with FitCreature, the fitness RPG where ` +
+            `every real workout shapes an evolving creature. Enter their code when ` +
+            `you create your account to unlock their welcome perks in the app.`;
+        }
+        if (typeof data.partner_logo_url === 'string' && data.partner_logo_url.startsWith('https://')) {
+          const logo = document.getElementById('join-partner-logo');
+          logo.src = data.partner_logo_url;
+          logo.alt = typeof data.partner_name === 'string' ? `${data.partner_name} logo` : 'Partner logo';
+          logo.hidden = false;
+        }
+      })
+      .catch(() => {
+        // Count + branding lost, page unaffected — deliberately silent.
+      });
   }
 </script>

@@ -37,11 +37,11 @@ const SCAN_ENDPOINT =
       {/* Referred state (shown when ?ref carries a well-formed code) */}
       <div id="join-referred" hidden>
         <img id="join-partner-logo" src="" alt="" width="72" height="72" class="mx-auto mt-6 rounded-xl" hidden />
-        <h1 id="join-headline" class="mt-8 text-4xl font-bold tracking-tight text-slate-900">You've been invited.</h1>
+        <h1 id="join-headline" class="mt-8 text-4xl font-bold tracking-tight text-slate-900">You've got a FitCreature code.</h1>
         <p id="join-blurb" class="mt-4 leading-relaxed text-slate-600">
-          Someone wants you training beside them in FitCreature, the fitness RPG where
-          every real workout shapes an evolving creature. This is their referral code.
-          Enter it when you create your account and you'll both earn in-game rewards.
+          FitCreature is the fitness RPG where every real workout shapes an evolving
+          creature. Enter this code when you create your account and your welcome
+          reward is waiting for you.
         </p>
 
         <div class="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -60,6 +60,11 @@ const SCAN_ENDPOINT =
 
       {/* Generic state (no or malformed ?ref) */}
       <div id="join-generic">
+        <p id="join-unknown-note" hidden class="mt-8 rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm leading-relaxed text-amber-900">
+          We couldn't find the code <span id="join-unknown-code" class="font-mono font-semibold"></span>.
+          It may have expired, or a character may have been misread. You're welcome to
+          join without one.
+        </p>
         <h1 class="mt-8 text-4xl font-bold tracking-tight text-slate-900">Join FitCreature.</h1>
         <p class="mt-4 leading-relaxed text-slate-600">
           FitCreature is the fitness RPG where every real workout shapes an evolving
@@ -128,9 +133,16 @@ const SCAN_ENDPOINT =
       }
     });
 
-    // Fire-and-forget scan log AFTER render. A partner code's response
-    // upgrades the headline to the partner's branding in place; any failure
-    // (offline, rate-limited, endpoint down) changes nothing on the page.
+    // Scan log fired AFTER render. The page renders a neutral "you've got a
+    // code" state that stays true whatever the answer is, then this call
+    // resolves it in place: a user code becomes the invite framing, a promo
+    // the campaign framing, a partner their branding, and a code the server
+    // does NOT know (status 'unknown') drops back to the generic join page
+    // with a note — a made-up ?ref must never read as a real invitation.
+    //
+    // ONLY an explicit 'unknown' downgrades. Any failure (offline, rate
+    // limited, endpoint down, malformed answer) leaves the neutral state
+    // standing, so the page still never depends on the backend.
     const ua = navigator.userAgent || '';
     const platform = /android/i.test(ua)
       ? 'android'
@@ -144,8 +156,24 @@ const SCAN_ENDPOINT =
     })
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
-        if (!data || data.status !== 'ok') return;
-        if (data.code_type === 'partner') {
+        if (!data) return;
+        if (data.status === 'unknown') {
+          // No such code. Show the plain join page + say so plainly.
+          document.getElementById('join-referred').hidden = true;
+          document.getElementById('join-unknown-code').textContent = code;
+          document.getElementById('join-unknown-note').hidden = false;
+          document.getElementById('join-generic').hidden = false;
+          return;
+        }
+        if (data.status !== 'ok') return;
+        if (data.code_type === 'user') {
+          document.getElementById('join-headline').textContent = "You've been invited.";
+          document.getElementById('join-blurb').textContent =
+            'Someone wants you training beside them in FitCreature, the fitness RPG ' +
+            'where every real workout shapes an evolving creature. This is their ' +
+            "referral code. Enter it when you create your account and you'll both " +
+            'earn in-game rewards.';
+        } else if (data.code_type === 'partner') {
           if (typeof data.partner_name === 'string' && data.partner_name.length > 0) {
             document.getElementById('join-headline').textContent =
               `A welcome from ${data.partner_name}.`;

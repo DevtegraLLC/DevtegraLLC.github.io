@@ -30,6 +30,7 @@ const PAGES = [
   'print/tent/index.html',
   'print/lobby/index.html',
   'account/index.html',
+  'agreement/index.html',
   'admin/index.html',
 ];
 for (const page of PAGES) {

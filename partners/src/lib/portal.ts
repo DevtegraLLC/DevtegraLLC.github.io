@@ -98,3 +98,30 @@ export function fmtDate(value: unknown): string {
   if (!value) return '';
   return new Date(String(value)).toLocaleDateString();
 }
+
+/** Minimal markdown renderer for OUR OWN published agreement documents.
+ * Escapes all HTML first, then applies the constructs the documents use
+ * (headings, paragraphs, lists, bold) — safe by construction, no dependency. */
+export function renderAgreementMd(md: string): string {
+  const esc = (t: string) =>
+    t.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+  const inline = (t: string) =>
+    esc(t).replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  const blocks = md.replaceAll('\r\n', '\n').split(/\n{2,}/);
+  const html: string[] = [];
+  for (const block of blocks) {
+    const lines = block.split('\n').filter((l) => l.trim().length > 0);
+    if (lines.length === 0) continue;
+    if (/^#{1,3} /.test(lines[0])) {
+      const level = lines[0].match(/^#+/)![0].length;
+      html.push(`<h${level}>${inline(lines[0].replace(/^#+ /, ''))}</h${level}>`);
+      const rest = lines.slice(1).join(' ');
+      if (rest) html.push(`<p>${inline(rest)}</p>`);
+    } else if (lines.every((l) => /^[-*] /.test(l.trim()))) {
+      html.push(`<ul>${lines.map((l) => `<li>${inline(l.trim().replace(/^[-*] /, ''))}</li>`).join('')}</ul>`);
+    } else {
+      html.push(`<p>${inline(lines.join(' '))}</p>`);
+    }
+  }
+  return html.join('\n');
+}

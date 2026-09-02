@@ -10,7 +10,10 @@ import Portal from '../../layouts/Portal.astro';
   </div>
 
   <div class="sheet mx-auto mt-6">
-    <p class="brand"><span class="fit">Fit</span><span class="creature">Creature</span></p>
+    <p class="brand">
+      <img id="lobby-logo" class="brandimg" alt="FitCreature" hidden />
+      <span id="lobby-brandtext"><span class="fit">Fit</span><span class="creature">Creature</span></span>
+    </p>
     <p id="lobby-head" class="head"></p>
     <p id="lobby-sub" class="sub"></p>
     <div class="qrcard">
@@ -51,6 +54,16 @@ import Portal from '../../layouts/Portal.astro';
   .glow.one { width: 110mm; height: 110mm; left: -40mm; top: -35mm; background: #6366f1; opacity: 0.55; }
   .glow.two { width: 95mm; height: 95mm; right: -35mm; bottom: -30mm; background: #f0c040; opacity: 0.3; }
   .glow.three { width: 70mm; height: 70mm; right: -20mm; top: 30mm; background: #393b84; opacity: 0.5; }
+  .brandimg { display: block; margin: 0 auto; max-width: 110mm; max-height: 22mm; }
+  .sheet.bw { background: #ffffff; box-shadow: inset 0 0 0 0.8mm #111111; }
+  .sheet.bw .fit, .sheet.bw .creature { color: #111111; }
+  .sheet.bw .head { color: #111111; }
+  .sheet.bw .sub { color: #333333; }
+  .sheet.bw .qrcard { box-shadow: inset 0 0 0 0.6mm #111111; }
+  .sheet.bw .code { color: #444444; }
+  .sheet.bw .mono { color: #111111; }
+  .sheet.bw .hint { color: #666666; }
+  .sheet.bw .glow { display: none; }
   @media print {
     :global(header), .print\:hidden { display: none !important; }
     .sheet { margin: 0; border-radius: 0; }
@@ -60,6 +73,15 @@ import Portal from '../../layouts/Portal.astro';
 
 <script>
   import { requireSession, callFn, callFnJson, el } from '../../lib/portal';
+
+  const bw = new URLSearchParams(location.search).get('style') === 'bw';
+  if (bw) document.querySelector('.sheet')!.classList.add('bw');
+  const logo = el<HTMLImageElement>('lobby-logo');
+  logo.addEventListener('load', () => {
+    logo.hidden = false;
+    el('lobby-brandtext').hidden = true;
+  });
+  logo.src = bw ? '/assets/brand/logos/fc_logo_black.png' : '/assets/brand/logos/fc_logo_white.png';
 
   void requireSession().then(async () => {
     const manifest = await callFnJson<Record<string, any>>('partner_print_pack', { format: 'manifest' });

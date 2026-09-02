@@ -24,7 +24,7 @@ import Portal from '../layouts/Portal.astro';
 
   <p id="r-loading" class="mt-6 text-sm text-slate-500">Loading…</p>
   <div id="r-gate" hidden class="mt-6 rounded-lg border border-indigo-200 bg-indigo-50 p-4 text-sm text-indigo-900">
-    Reports open once the current agreements are accepted — see the <a class="underline" href="/dashboard">Overview</a> page.
+    Reports open once the current agreements are accepted. See the <a class="underline" href="/dashboard">Overview</a> page.
   </div>
 
   <div id="r-body" hidden>
@@ -133,7 +133,7 @@ import Portal from '../layouts/Portal.astro';
     const m = current;
     const t = m.totals;
     const lines: string[] = [];
-    lines.push(`# FitCreature partner report — code ${m.code} — ${m.from} to ${m.to}`);
+    lines.push(`# FitCreature partner report: code ${m.code}, ${m.from} to ${m.to}`);
     for (const d of m.definitions as string[]) lines.push(`# ${d}`);
     for (const c of m.caveats as string[]) lines.push(`# CAVEAT: ${c}`);
     lines.push('metric,value');

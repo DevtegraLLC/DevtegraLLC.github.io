@@ -1,13 +1,13 @@
 // ===========================================================================
 // The portal's Supabase client (F91). Talks to the FitCreature project as
 // the signed-in partner (role partner_user) or admin (role authenticated +
-// server-side is_admin_role checks) — every capability decision is made
+// server-side is_admin_role checks); every capability decision is made
 // SERVER-side; this client is transport.
 //
 // The publishable key is public by design (it grants only what RLS + the
 // grant posture allow, which for anon is nothing). Local development against
 // the FitCreature local stack: run `localStorage.fc_env = 'local'` in the
-// console (and clear it to go back) — the demo keys below are the CLI's
+// console (and clear it to go back); the demo keys below are the CLI's
 // public defaults.
 // ===========================================================================
 

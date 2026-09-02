@@ -130,11 +130,11 @@ import Portal from '../layouts/Portal.astro';
     const live = listing.live as Record<string, any> | null;
     const draft = listing.draft as Record<string, any> | null;
     const status = draft
-      ? { draft: 'Draft in progress', submitted: 'Submitted — in review', changes_requested: 'Changes requested' }[
+      ? { draft: 'Draft in progress', submitted: 'Submitted, in review', changes_requested: 'Changes requested' }[
           String(draft.status)
         ] ?? String(draft.status)
       : 'Live';
-    el('card-listing').textContent = `${live?.business_name ?? 'Your business'} — ${status}.`;
+    el('card-listing').textContent = `${live?.business_name ?? 'Your business'}: ${status}.`;
   }
 
   void requireSession().then(refresh).catch((err) => {

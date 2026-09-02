@@ -1,0 +1,71 @@
+---
+import Portal from '../layouts/Portal.astro';
+---
+
+<Portal title="Agreement">
+  <article class="mx-auto max-w-2xl">
+    <div class="flex items-center justify-between gap-3 print:hidden">
+      <a href="/dashboard" class="text-sm text-slate-500 hover:text-slate-900">&larr; Back</a>
+      <div class="flex gap-2">
+        <button id="ag-print" class="rounded-md border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-100">Print / Save PDF</button>
+        <button id="ag-download" class="rounded-md border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-100">Download</button>
+      </div>
+    </div>
+    <p id="ag-loading" class="mt-8 text-sm text-slate-500">Loading…</p>
+    <p id="ag-error" hidden class="mt-8 text-sm text-rose-600"></p>
+    <div id="ag-body" class="agreement mt-6"></div>
+    <p id="ag-meta" class="mt-10 text-xs text-slate-400"></p>
+  </article>
+</Portal>
+
+<style>
+  .agreement :global(h1) { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.01em; margin-top: 0.5rem; }
+  .agreement :global(h2) { font-size: 1.05rem; font-weight: 700; margin-top: 1.75rem; }
+  .agreement :global(h3) { font-size: 0.95rem; font-weight: 700; margin-top: 1.25rem; }
+  .agreement :global(p) { margin-top: 0.75rem; line-height: 1.65; font-size: 0.925rem; color: #1e293b; }
+  .agreement :global(ul) { margin-top: 0.75rem; padding-left: 1.25rem; list-style: disc; }
+  .agreement :global(li) { margin-top: 0.35rem; line-height: 1.6; font-size: 0.925rem; color: #1e293b; }
+  @media print {
+    :global(header) { display: none !important; }
+  }
+</style>
+
+<script>
+  import { requireSession, callFnJson, el, show, saveBlob } from '../lib/portal';
+  import { renderAgreementMd } from '../lib/portal';
+
+  let rawText = '';
+  let filename = 'agreement.md';
+
+  async function load(): Promise<void> {
+    const id = new URLSearchParams(location.search).get('id');
+    if (!id) throw new Error('missing id');
+    const dl = await callFnJson<{ url: string; sha256: string }>('partner_download_agreement', {
+      agreement_version_id: id,
+    });
+    const res = await fetch(dl.url);
+    if (!res.ok) throw new Error(`document fetch failed (${res.status})`);
+    rawText = await res.text();
+    el('ag-body').innerHTML = renderAgreementMd(rawText);
+    const title = rawText.match(/^# (.+)$/m)?.[1] ?? 'Agreement';
+    filename = `${title.toLowerCase().replace(/[^a-z0-9]+/g, '_')}.md`;
+    document.title = `${title} · FitCreature Partners`;
+    el('ag-meta').textContent = `Document fingerprint (SHA-256): ${dl.sha256}`;
+    show('ag-loading', false);
+  }
+
+  el('ag-print').addEventListener('click', () => window.print());
+  el('ag-download').addEventListener('click', () => {
+    if (rawText) saveBlob(new Blob([rawText], { type: 'text/markdown' }), filename);
+  });
+
+  void requireSession().then(load).catch((err) => {
+    if (String(err).includes('redirecting')) return;
+    show('ag-loading', false);
+    const node = el('ag-error');
+    node.textContent = /forbidden/i.test(String(err))
+      ? 'This document isn\'t available to view (it may have been superseded).'
+      : `Could not load the document (${err}).`;
+    node.hidden = false;
+  });
+</script>

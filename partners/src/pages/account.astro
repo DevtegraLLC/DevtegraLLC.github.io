@@ -98,7 +98,9 @@ import Portal from '../layouts/Portal.astro';
   void requireSession().then(async (session) => {
     el('acct-email').textContent = `Signed in as ${session.user.email}`;
     await Promise.all([loadAgreements(), loadMfa()]);
-  }).catch(() => {});
+  }).catch((err) => {
+    if (!String(err).includes('redirecting')) toast(String(err));
+  });
 
   el<HTMLFormElement>('pw-form').addEventListener('submit', async (e) => {
     e.preventDefault();

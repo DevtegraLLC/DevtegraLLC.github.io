@@ -249,5 +249,11 @@ import Portal from '../layouts/Portal.astro';
     }
   });
 
-  void requireSession().then(load).catch(() => {});
+  void requireSession().then(load).catch((err) => {
+    if (String(err).includes('redirecting')) return;
+    show('ad-loading', false);
+    const node = el('ad-denied');
+    node.textContent = `Could not load the review area (${err}). Refresh to retry.`;
+    node.hidden = false;
+  });
 </script>

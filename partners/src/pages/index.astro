@@ -75,10 +75,19 @@ import Portal from '../layouts/Portal.astro';
       note.hidden = false;
       return;
     }
-    await supabase().auth.resetPasswordForEmail(email, {
-      redirectTo: `${location.origin}/account?recovery=1`,
+    // Surface mailer/rate-limit failures instead of a false success note —
+    // the address's existence still isn't revealed (errors here are about
+    // the SEND, not the account).
+    const { error } = await supabase().auth.resetPasswordForEmail(email, {
+      redirectTo: `${location.origin}/account`,
     });
-    note.textContent = 'If that address has a partner account, a reset link is on its way.';
+    if (error) {
+      note.textContent = /rate/i.test(error.message ?? '')
+        ? 'Too many reset requests for the moment. Wait a few minutes and try once more.'
+        : `The reset email could not be sent (${error.message}). Try again shortly.`;
+    } else {
+      note.textContent = 'If that address has a partner account, a reset link is on its way.';
+    }
     note.hidden = false;
   });
 </script>

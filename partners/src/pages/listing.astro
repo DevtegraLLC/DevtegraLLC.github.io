@@ -45,10 +45,25 @@ import Portal from '../layouts/Portal.astro';
     <div>
       <h2 class="text-sm font-semibold">Logo</h2>
       <div class="mt-2 flex items-center gap-4">
-        <img id="logo-preview" alt="" class="h-16 w-16 rounded-full border border-slate-200 object-cover" hidden />
+        <button type="button" id="logo-circle" aria-label="Upload a logo"
+          class="group relative h-20 w-20 shrink-0 overflow-hidden rounded-full border-2 border-dashed border-slate-300 bg-slate-100 hover:border-indigo-400">
+          <img id="logo-preview" alt="" class="h-full w-full object-cover" hidden />
+          <span id="logo-placeholder" class="absolute inset-0 flex items-center justify-center text-slate-400 group-hover:text-indigo-500">
+            <svg viewBox="0 0 24 24" class="h-8 w-8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 16V4m0 0 4 4m-4-4-4 4" /><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" />
+            </svg>
+          </span>
+        </button>
         <div>
-          <input id="f-logo" type="file" accept="image/png,image/jpeg,image/webp" class="text-sm" />
-          <p class="mt-1 text-xs text-slate-500">
+          <button type="button" id="logo-button"
+            class="inline-flex items-center gap-2 rounded-md bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-700">
+            <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 16V4m0 0 4 4m-4-4-4 4" /><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" />
+            </svg>
+            Upload logo
+          </button>
+          <input id="f-logo" type="file" accept="image/png,image/jpeg,image/webp" hidden />
+          <p class="mt-2 text-xs text-slate-500">
             Square PNG, JPEG, or WebP · 120-1024px · under 1.5 MB · shown cropped to a circle
             (see the <a class="underline" href="/print-pack#logo-spec">logo spec</a>).
           </p>
@@ -186,9 +201,7 @@ import Portal from '../layouts/Portal.astro';
     const logoPath = draft?.logo_object_path as string | undefined;
     const liveLogo = live.logo_url as string | undefined;
     if (liveLogo && !logoPath) {
-      const img = el<HTMLImageElement>('logo-preview');
-      img.src = liveLogo;
-      img.hidden = false;
+      showPreview(liveLogo);
     }
     if (logoPath) {
       const note = el('logo-note');
@@ -222,10 +235,22 @@ import Portal from '../layouts/Portal.astro';
     el('perk-rows').appendChild(perkRow());
   });
 
+  const openPicker = () => el<HTMLInputElement>('f-logo').click();
+  el('logo-button').addEventListener('click', openPicker);
+  el('logo-circle').addEventListener('click', openPicker);
+
+  function showPreview(src: string): void {
+    const img = el<HTMLImageElement>('logo-preview');
+    img.src = src;
+    img.hidden = false;
+    el('logo-placeholder').hidden = true;
+  }
+
   el<HTMLInputElement>('f-logo').addEventListener('change', async () => {
     const input = el<HTMLInputElement>('f-logo');
     const file = input.files?.[0];
     if (!file) return;
+    showPreview(URL.createObjectURL(file));
     const note = el('logo-note');
     note.hidden = false;
     note.className = 'mt-1 text-xs text-slate-500';

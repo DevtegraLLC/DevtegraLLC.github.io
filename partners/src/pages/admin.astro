@@ -44,9 +44,9 @@ import Portal from '../layouts/Portal.astro';
           <option value="content_policy">content_policy</option>
           <option value="placement_addendum">placement_addendum</option>
         </select>
-        <input id="ag-version" placeholder="version, e.g. 1.0" class="rounded-md border border-slate-300 px-3 py-2 text-sm" />
+        <input id="ag-version" required placeholder="version, e.g. 1.0" class="rounded-md border border-slate-300 px-3 py-2 text-sm" />
       </div>
-      <textarea id="ag-body" rows="6" placeholder="The full agreement text (markdown). Stored immutably; partners re-accept."
+      <textarea id="ag-body" rows="6" required placeholder="The full agreement text (markdown). Stored immutably; partners re-accept."
         class="rounded-md border border-slate-300 px-3 py-2 font-mono text-xs"></textarea>
       <button class="justify-self-start rounded-md bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700">
         Publish version

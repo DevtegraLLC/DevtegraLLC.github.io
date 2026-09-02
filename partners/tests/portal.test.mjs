@@ -79,6 +79,14 @@ for (const needle of [
 // never present an Android-only number as a total, never estimate).
 ok(all.includes('cannot be counted') || all.includes('Not counted'), 'installs framed as not counted');
 
+// No em dashes anywhere in the portal source (Will's standing copy rule;
+// the F91 spec bans them in comments and UI copy too).
+const srcFiles = walk('src').filter((f) => /\.(astro|ts|css)$/.test(f));
+for (const f of srcFiles) {
+  const text = fs.readFileSync(f, 'utf8');
+  ok(!text.includes('\u2014'), `no em dash in ${f}`);
+}
+
 // The sign-in page never promises self-serve signup (accounts are provisioned).
 const index = fs.readFileSync('dist/index.html', 'utf8');
 ok(index.includes('set up by the FitCreature team'), 'no self-serve signup implied');

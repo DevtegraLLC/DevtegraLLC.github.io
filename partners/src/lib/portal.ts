@@ -1,5 +1,5 @@
 // Shared portal page plumbing (F91): session guards, edge-fn calls, small UI
-// helpers. Every guard here is a UX convenience — the SERVER enforces every
+// helpers. Every guard here is a UX convenience; the SERVER enforces every
 // rule again (role grants, ownership asserts, the agreements gate).
 
 import { authHeaders, functionsUrl, supabase } from './supabase';
@@ -101,7 +101,7 @@ export function fmtDate(value: unknown): string {
 
 /** Minimal markdown renderer for OUR OWN published agreement documents.
  * Escapes all HTML first, then applies the constructs the documents use
- * (headings, paragraphs, lists, bold) — safe by construction, no dependency. */
+ * (headings, paragraphs, lists, bold): safe by construction, no dependency. */
 export function renderAgreementMd(md: string): string {
   const esc = (t: string) =>
     t.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');

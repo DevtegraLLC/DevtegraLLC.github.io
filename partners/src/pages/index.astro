@@ -84,7 +84,7 @@ import Portal from '../layouts/Portal.astro';
       note.hidden = false;
       return;
     }
-    // Surface mailer/rate-limit failures instead of a false success note —
+    // Surface mailer/rate-limit failures instead of a false success note;
     // the address's existence still isn't revealed (errors here are about
     // the SEND, not the account).
     const { error } = await supabase().auth.resetPasswordForEmail(email, {

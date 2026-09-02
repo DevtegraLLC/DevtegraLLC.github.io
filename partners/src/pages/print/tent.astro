@@ -45,6 +45,11 @@ import Portal from '../../layouts/Portal.astro';
     el('tent-copy').textContent = manifest.copy[0];
     const svgRes = await callFn('partner_print_pack', { variant: 'standard', format: 'svg' });
     el('tent-qr').innerHTML = await svgRes.text();
-  }).catch(() => {});
+  }).catch((err) => {
+    if (!String(err).includes('redirecting')) {
+      document.querySelector('.tent, .sheet')?.insertAdjacentHTML('afterbegin',
+        `<p style="color:#e11d48;font-size:12px">Could not load the pack (${err}). Refresh to retry.</p>`);
+    }
+  });
   document.getElementById('tent-print')?.addEventListener('click', () => window.print());
 </script>

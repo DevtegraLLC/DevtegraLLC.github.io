@@ -7,7 +7,7 @@ description: "How Devtegra collects, uses, and shares information across devtegr
 # Privacy Policy
 
 Effective Date: May 28, 2026
-Last Updated: July 11, 2026
+Last Updated: September 1, 2026
 
 This Privacy Policy describes how Devtegra, LLC ("Devtegra," "we," "us," or "our") collects, uses, and shares information when you use our website at devtegra.com and our mobile applications, including FitCreature (collectively, the "Services").
 
@@ -131,11 +131,19 @@ Some information is visible to other FitCreature users by design:
 - Your friends may see milestone events in their activity feed, for example that you set a new personal record or extended a training streak. These events never name the exercise and never include weights, measurements, or any health data.
 - Your exact workout contents (specific exercises, sets, weights, reps) are never visible to other users.
 
-### 5.4 Legal and Safety
+### 5.4 Partner Businesses Shown in the App
+
+FitCreature's Social tab can show cards for partner businesses (for example, a local gym) with their name, logo, website, and in-store offers. **Which partner cards you see is determined only by your approximate region**: partners are shown either to everyone (national partners) or to users whose regional area matches the partner's (see Section 8.2 on location). No other signal is used — not your workouts, health data, purchases, demographics, or past activity in the app.
+
+**Partner businesses receive no personal data about you.** Partners can see only aggregate, non-identifying counts about their own listing: how many times their signup page was opened, how many accounts redeemed their code, and how many of those redemptions were new signups. These counts contain no names, usernames, identifiers, or locations, and are not connected to any individual. If we ever add aggregate counts of how often partner cards are viewed or tapped in the app, those will follow the same design: daily totals only, with no user, device, or session identifiers.
+
+If you run a business that partners with FitCreature and use our partner portal, we process your business contact information (name and email), your sign-in credentials, the listing content and images you submit, your acceptance records for partner agreements (including the time, network address, and the exact document version accepted), and aggregate performance counts for your own referral code. This information is used to operate the partner program and is retained as needed for the life of the partnership and our legal obligations.
+
+### 5.5 Legal and Safety
 
 We may disclose information when required by law, subpoena, or court order; to protect the rights, safety, or property of Devtegra, our users, or the public; or in connection with a merger, acquisition, or sale of assets.
 
-### 5.5 What We Do Not Do
+### 5.6 What We Do Not Do
 
 - We do not sell your personal data.
 - We do not share your personal data for cross-context behavioral advertising. Ads in FitCreature are non-personalized.

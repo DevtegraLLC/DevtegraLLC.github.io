@@ -2,3 +2,5 @@ node_modules/
 dist/
 .astro/
 .DS_Store
+# build-time copy of public/brand (see public/brand/MANIFEST.md)
+partners/public/assets/

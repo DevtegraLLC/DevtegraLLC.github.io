@@ -43,10 +43,15 @@ import Portal from '../layouts/Portal.astro';
     </div>
 
     <h2 class="mt-8 text-sm font-semibold">Ready-to-print layouts</h2>
-    <p class="mt-1 text-sm text-slate-600">Open, then print or save as PDF from your browser.</p>
+    <p class="mt-1 text-sm text-slate-600">Pick a style, open a layout, then print or save as PDF from your browser.</p>
+    <fieldset class="mt-3 flex items-center gap-4 text-sm">
+      <legend class="sr-only">Print style</legend>
+      <label class="flex items-center gap-1.5"><input type="radio" name="pp-style" value="color" checked /> Color</label>
+      <label class="flex items-center gap-1.5"><input type="radio" name="pp-style" value="bw" /> Black &amp; white</label>
+    </fieldset>
     <div class="mt-3 flex gap-3">
-      <a href="/print/tent" target="_blank" class="rounded-md border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-100">Table tent</a>
-      <a href="/print/lobby" target="_blank" class="rounded-md border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-100">Lobby sheet</a>
+      <a id="pp-tent" href="/print/tent?style=color" target="_blank" class="rounded-md border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-100">Table tent</a>
+      <a id="pp-lobby" href="/print/lobby?style=color" target="_blank" class="rounded-md border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-100">Lobby sheet</a>
     </div>
 
     <h2 class="mt-8 text-sm font-semibold">Copy you can use as-is</h2>
@@ -97,6 +102,14 @@ import Portal from '../layouts/Portal.astro';
       .map((c) => `<li class="rounded-md bg-white px-4 py-2.5 border border-slate-200">“${c}”</li>`)
       .join('');
     show('pp-body', true);
+  }
+
+  for (const radio of document.querySelectorAll<HTMLInputElement>('input[name="pp-style"]')) {
+    radio.addEventListener('change', () => {
+      const style = radio.value;
+      el<HTMLAnchorElement>('pp-tent').href = `/print/tent?style=${style}`;
+      el<HTMLAnchorElement>('pp-lobby').href = `/print/lobby?style=${style}`;
+    });
   }
 
   for (const button of document.querySelectorAll<HTMLButtonElement>('.pp-dl')) {

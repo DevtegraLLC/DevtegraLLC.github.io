@@ -11,7 +11,10 @@ import Portal from '../../layouts/Portal.astro';
 
   <div id="tent" class="tent mx-auto mt-6">
     <div class="panel">
-      <p class="brand"><span class="fit">Fit</span><span class="creature">Creature</span></p>
+      <p class="brand">
+        <img id="tent-logo" class="brandimg" alt="FitCreature" hidden />
+        <span id="tent-brandtext"><span class="fit">Fit</span><span class="creature">Creature</span></span>
+      </p>
       <p id="tent-copy" class="copy"></p>
       <div class="qrcard">
         <div id="tent-qr" class="qr"></div>
@@ -50,6 +53,17 @@ import Portal from '../../layouts/Portal.astro';
   .glow { position: absolute; border-radius: 50%; filter: blur(14mm); opacity: 0.55; }
   .glow.one { width: 60mm; height: 60mm; left: -22mm; top: -20mm; background: #6366f1; }
   .glow.two { width: 55mm; height: 55mm; right: -20mm; bottom: -18mm; background: #f0c040; opacity: 0.35; }
+  .brandimg { display: block; margin: 0 auto; max-width: 60mm; max-height: 14mm; }
+  /* Black & white: white ground, dark ink, no glows; the QR card keeps a
+     plain border. The compositional layer for ink-friendly printing. */
+  .tent.bw .panel { background: #ffffff; box-shadow: inset 0 0 0 0.6mm #111111; }
+  .tent.bw .fit, .tent.bw .creature { color: #111111; }
+  .tent.bw .copy { color: #111111; }
+  .tent.bw .qrcard { box-shadow: inset 0 0 0 0.5mm #111111; padding: 2.5mm; }
+  .tent.bw .code { color: #444444; }
+  .tent.bw .mono { color: #111111; }
+  .tent.bw .hint { color: #666666; }
+  .tent.bw .glow { display: none; }
   @media print {
     :global(header), .print\:hidden { display: none !important; }
     .tent { margin: 0; }
@@ -60,6 +74,18 @@ import Portal from '../../layouts/Portal.astro';
 
 <script>
   import { requireSession, callFn, callFnJson, el, show } from '../../lib/portal';
+
+  // Style variant (?style=bw|color) + the brand slot: a logo FILE from the
+  // brand library wins when present; the styled-text wordmark is the
+  // fallback (public/brand/MANIFEST.md rule).
+  const bw = new URLSearchParams(location.search).get('style') === 'bw';
+  if (bw) document.getElementById('tent')!.classList.add('bw');
+  const logo = el<HTMLImageElement>('tent-logo');
+  logo.addEventListener('load', () => {
+    logo.hidden = false;
+    el('tent-brandtext').hidden = true;
+  });
+  logo.src = bw ? '/assets/brand/logos/fc_logo_black.png' : '/assets/brand/logos/fc_logo_white.png';
 
   void requireSession().then(async () => {
     const manifest = await callFnJson<Record<string, any>>('partner_print_pack', { format: 'manifest' });

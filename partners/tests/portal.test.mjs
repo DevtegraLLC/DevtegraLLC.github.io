@@ -79,6 +79,12 @@ for (const needle of [
 // never present an Android-only number as a total, never estimate).
 ok(all.includes('cannot be counted') || all.includes('Not counted'), 'installs framed as not counted');
 
+// The brand library rides every build (public/brand -> /assets/brand).
+ok(fs.existsSync('dist/assets/brand/icons/fc_appicon_1024.png'), 'brand library copied into the portal build');
+ok(fs.existsSync('dist/assets/brand/MANIFEST.md'), 'brand manifest rides along');
+ok(all.includes('fc_logo_white.png') && all.includes('fc_logo_black.png'), 'print templates wired to the logo slots');
+ok(all.includes('style=bw') || all.includes("style=${"), 'style variant links wired');
+
 // No em dashes anywhere in the portal source (Will's standing copy rule;
 // the F91 spec bans them in comments and UI copy too).
 const srcFiles = walk('src').filter((f) => /\.(astro|ts|css)$/.test(f));

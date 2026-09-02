@@ -1,0 +1,253 @@
+---
+import Portal from '../layouts/Portal.astro';
+---
+
+<Portal title="Review queue">
+  <h1 class="text-2xl font-bold tracking-tight">Partner review</h1>
+  <p class="mt-2 text-sm text-slate-600">
+    The F24 console area: submitted drafts, agreement states, takedowns, and cross-partner numbers.
+    Sign in with your admin account (not a partner login).
+  </p>
+
+  <p id="ad-loading" class="mt-6 text-sm text-slate-500">Loading…</p>
+  <p id="ad-denied" hidden class="mt-6 text-sm text-rose-600">This account doesn't have admin access.</p>
+
+  <div id="ad-body" hidden>
+    <h2 class="mt-8 text-sm font-semibold">Submitted drafts</h2>
+    <p id="ad-queue-empty" hidden class="mt-2 text-sm text-slate-500">Nothing waiting for review.</p>
+    <div id="ad-queue" class="mt-3 space-y-4"></div>
+
+    <h2 class="mt-10 text-sm font-semibold">Partners</h2>
+    <div class="mt-3 overflow-x-auto">
+      <table class="w-full min-w-[40rem] text-sm">
+        <thead>
+          <tr class="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500">
+            <th class="py-2 pr-4">Code</th><th class="py-2 pr-4">Contact</th><th class="py-2 pr-4">Status</th>
+            <th class="py-2 pr-4">Terms</th><th class="py-2 pr-4">Brand</th><th class="py-2 pr-4">Content</th>
+            <th class="py-2">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="ad-partners"></tbody>
+      </table>
+    </div>
+
+    <h2 class="mt-10 text-sm font-semibold">Unpublished listings</h2>
+    <p id="ad-unpub-empty" hidden class="mt-2 text-sm text-slate-500">None.</p>
+    <ul id="ad-unpub" class="mt-3 space-y-2 text-sm"></ul>
+
+    <h2 class="mt-10 text-sm font-semibold">Publish an agreement version</h2>
+    <form id="ad-agreement-form" class="mt-3 grid max-w-xl gap-3">
+      <div class="grid grid-cols-2 gap-3">
+        <select id="ag-kind" class="rounded-md border border-slate-300 px-3 py-2 text-sm">
+          <option value="terms">terms</option>
+          <option value="brand_license">brand_license</option>
+          <option value="content_policy">content_policy</option>
+          <option value="placement_addendum">placement_addendum</option>
+        </select>
+        <input id="ag-version" placeholder="version, e.g. 1.0" class="rounded-md border border-slate-300 px-3 py-2 text-sm" />
+      </div>
+      <textarea id="ag-body" rows="6" placeholder="The full agreement text (markdown). Stored immutably; partners re-accept."
+        class="rounded-md border border-slate-300 px-3 py-2 font-mono text-xs"></textarea>
+      <button class="justify-self-start rounded-md bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700">
+        Publish version
+      </button>
+    </form>
+
+    <h2 class="mt-10 text-sm font-semibold">Cross-partner metrics (30 days)</h2>
+    <div class="mt-3 overflow-x-auto">
+      <table class="w-full min-w-[36rem] text-sm">
+        <thead>
+          <tr class="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500">
+            <th class="py-2 pr-4">Code</th><th class="py-2 pr-4">Scans (period)</th><th class="py-2 pr-4">Scans (all time)</th>
+            <th class="py-2 pr-4">Redemptions</th><th class="py-2">New-user</th>
+          </tr>
+        </thead>
+        <tbody id="ad-metrics"></tbody>
+      </table>
+    </div>
+  </div>
+</Portal>
+
+<script>
+  import { requireSession, rpc, callFn, callFnJson, el, show, toast } from '../lib/portal';
+
+  function draftCard(entry: Record<string, any>): HTMLElement {
+    const d = entry.draft;
+    const live = entry.live ?? {};
+    const card = document.createElement('div');
+    card.className = 'rounded-lg border border-slate-200 bg-white p-5';
+    const perks = (d.perks as Array<Record<string, any>>) ?? [];
+    const row = (label: string, liveVal: unknown, draftVal: unknown) => {
+      const changed = String(liveVal ?? '') !== String(draftVal ?? '');
+      return `<tr class="${changed ? 'bg-amber-50' : ''}">
+        <td class="py-1 pr-3 text-xs uppercase tracking-wide text-slate-500">${label}</td>
+        <td class="py-1 pr-3 text-slate-500">${liveVal ?? '<span class="text-slate-300">—</span>'}</td>
+        <td class="py-1 font-medium">${draftVal ?? '<span class="text-slate-300">—</span>'}</td></tr>`;
+    };
+    card.innerHTML = `
+      <div class="flex items-start justify-between gap-4">
+        <div>
+          <p class="font-semibold">${live.code ?? ''} · ${entry.account?.contact_name ?? ''}</p>
+          <p class="text-xs text-slate-500">${entry.account?.contact_email ?? ''} · submitted ${new Date(d.updated_at).toLocaleString()}</p>
+        </div>
+        ${entry.logo_url ? `<img src="${entry.logo_url}" alt="" class="h-14 w-14 rounded-full border border-slate-200 object-cover" />` : ''}
+      </div>
+      <table class="mt-3 w-full text-sm">
+        <thead><tr class="text-left text-xs uppercase tracking-wide text-slate-400">
+          <th class="pr-3"></th><th class="pr-3 font-medium">Live</th><th class="font-medium">Draft</th></tr></thead>
+        <tbody>
+          ${row('Name', live.partner_name, d.business_name)}
+          ${row('Website', live.partner_website_url, d.website_url)}
+          ${row('Address', live.partner_address, d.address)}
+          ${row('Location', '', d.latitude != null ? `${d.latitude}, ${d.longitude}` : '(unchanged)')}
+          ${row('Perks', (entry.live_perks ?? []).map((p: any) => p.title).join(' · '), perks.map((p) => p.title).join(' · '))}
+        </tbody>
+      </table>
+      <div class="mt-4 flex flex-wrap items-center gap-2">
+        <input data-note class="w-64 rounded-md border border-slate-300 px-3 py-1.5 text-sm" placeholder="Note to the partner (required to request changes)" />
+        <button data-approve class="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-emerald-500">Approve</button>
+        <button data-changes class="rounded-md border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-100">Request changes</button>
+      </div>`;
+    const note = card.querySelector('[data-note]') as HTMLInputElement;
+    card.querySelector('[data-approve]')!.addEventListener('click', async () => {
+      const res = await callFnJson<Record<string, any>>('admin_approve_partner_draft', {
+        draft_id: d.id,
+        note: note.value || undefined,
+      }).catch((err) => ({ status: String(err) }));
+      if (res.status === 'ok') {
+        toast('Approved and live.');
+        card.remove();
+      } else {
+        toast(`Approve failed (${res.status ?? JSON.stringify(res)}).`);
+      }
+    });
+    card.querySelector('[data-changes]')!.addEventListener('click', async () => {
+      if (!note.value.trim()) {
+        toast('Write the partner a note first.');
+        return;
+      }
+      const res = await rpc<Record<string, any>>('request_partner_draft_changes', {
+        p_draft_id: d.id,
+        p_note: note.value,
+      });
+      if (res.status === 'ok') {
+        toast('Sent back with your note.');
+        card.remove();
+      } else {
+        toast(`Could not send (${res.status}).`);
+      }
+    });
+    return card;
+  }
+
+  async function load(): Promise<void> {
+    const res = await callFn('admin_partner_review_queue', {});
+    show('ad-loading', false);
+    if (res.status === 403) {
+      show('ad-denied', true);
+      return;
+    }
+    const body = await res.json();
+    if (body.status !== 'ok') {
+      show('ad-denied', true);
+      return;
+    }
+    show('ad-body', true);
+
+    const queue = body.queue as Array<Record<string, any>>;
+    show('ad-queue-empty', queue.length === 0);
+    const queueNode = el('ad-queue');
+    queueNode.innerHTML = '';
+    for (const entry of queue) queueNode.appendChild(draftCard(entry));
+
+    const partners = el('ad-partners');
+    partners.innerHTML = '';
+    for (const p of body.partners as Array<Record<string, any>>) {
+      const tr = document.createElement('tr');
+      tr.className = 'border-b border-slate-100';
+      const mark = (ok: boolean) => (ok ? '✓' : '—');
+      tr.innerHTML = `
+        <td class="py-2 pr-4 font-mono">${p.code ?? ''}</td>
+        <td class="py-2 pr-4">${p.contact_name} <span class="text-xs text-slate-500">${p.contact_email}</span></td>
+        <td class="py-2 pr-4">${p.status}</td>
+        <td class="py-2 pr-4">${mark(p.agreements.terms)}</td>
+        <td class="py-2 pr-4">${mark(p.agreements.brand_license)}</td>
+        <td class="py-2 pr-4">${mark(p.agreements.content_policy)}</td>`;
+      const actions = document.createElement('td');
+      actions.className = 'py-2';
+      const flip = document.createElement('button');
+      const suspending = p.status === 'active';
+      flip.textContent = suspending ? 'Suspend' : 'Reactivate';
+      flip.className = 'rounded-md border border-slate-300 px-2 py-1 text-xs hover:bg-slate-100';
+      flip.addEventListener('click', async () => {
+        const res2 = await callFnJson<Record<string, any>>('admin_set_partner_status', {
+          partner_account_id: p.id,
+          status: suspending ? 'suspended' : 'active',
+        }).catch((err) => ({ status: String(err) }));
+        if (res2.status === 'ok') {
+          toast(suspending ? 'Suspended (sessions revoked).' : 'Reactivated.');
+          await load();
+        } else {
+          toast(`Failed (${res2.status}).`);
+        }
+      });
+      actions.appendChild(flip);
+      tr.appendChild(actions);
+      partners.appendChild(tr);
+    }
+
+    const unpub = body.unpublished as Array<Record<string, any>>;
+    show('ad-unpub-empty', unpub.length === 0);
+    const unpubNode = el('ad-unpub');
+    unpubNode.innerHTML = '';
+    for (const u of unpub) {
+      const li = document.createElement('li');
+      li.className = 'flex items-center justify-between rounded-md border border-slate-200 bg-white px-4 py-2.5';
+      li.innerHTML = `<span class="font-mono">${u.code}</span><span>${u.partner_name ?? ''}</span>`;
+      const btn = document.createElement('button');
+      btn.textContent = 'Republish';
+      btn.className = 'rounded-md border border-slate-300 px-2 py-1 text-xs hover:bg-slate-100';
+      btn.addEventListener('click', async () => {
+        const res2 = await rpc<Record<string, any>>('set_partner_listing_published', {
+          p_code_id: u.id,
+          p_published: true,
+        });
+        toast(res2.status === 'ok' ? 'Republished.' : `Failed (${res2.status}).`);
+        await load();
+      });
+      li.appendChild(btn);
+      unpubNode.appendChild(li);
+    }
+
+    const metrics = await rpc<Record<string, any>>('get_partner_metrics_admin', {});
+    if (metrics.status === 'ok') {
+      el('ad-metrics').innerHTML = (metrics.partners as Array<Record<string, any>>)
+        .filter(Boolean)
+        .map((m) => `<tr class="border-b border-slate-100">
+          <td class="py-2 pr-4 font-mono">${m.code}</td>
+          <td class="py-2 pr-4">${m.totals.scans_period}</td>
+          <td class="py-2 pr-4">${m.totals.scans_all_time}</td>
+          <td class="py-2 pr-4">${m.totals.redemptions_all_time}</td>
+          <td class="py-2">${m.totals.new_user_redemptions}</td></tr>`)
+        .join('');
+    }
+  }
+
+  el<HTMLFormElement>('ad-agreement-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const res = await callFnJson<Record<string, any>>('admin_publish_agreement', {
+      kind: el<HTMLSelectElement>('ag-kind').value,
+      version: el<HTMLInputElement>('ag-version').value.trim(),
+      body_text: el<HTMLTextAreaElement>('ag-body').value,
+    }).catch((err) => ({ status: String(err) }));
+    if (res.status === 'ok') {
+      toast('Published. Every partner re-accepts at next sign-in.');
+      el<HTMLInputElement>('ag-version').value = '';
+      el<HTMLTextAreaElement>('ag-body').value = '';
+    } else {
+      toast(`Publish failed (${res.status ?? JSON.stringify(res)}).`);
+    }
+  });
+
+  void requireSession().then(load).catch(() => {});
+</script>

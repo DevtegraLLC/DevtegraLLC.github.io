@@ -44,9 +44,18 @@ import Portal from '../layouts/Portal.astro';
   import { supabase } from '../lib/supabase';
   import { el, show } from '../lib/portal';
 
-  // Already signed in? Straight to the dashboard.
+  // Already signed in? Route by role: partners to their dashboard, the
+  // admin account to the review area.
+  const roleHome = (session: import('@supabase/supabase-js').Session): string => {
+    try {
+      const payload = JSON.parse(atob(session.access_token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+      return payload.role === 'partner_user' ? '/dashboard' : '/admin';
+    } catch {
+      return '/dashboard';
+    }
+  };
   void supabase().auth.getSession().then(({ data }) => {
-    if (data.session) location.href = '/dashboard';
+    if (data.session) location.href = roleHome(data.session);
   });
 
   el<HTMLFormElement>('login-form').addEventListener('submit', async (e) => {
@@ -56,7 +65,7 @@ import Portal from '../layouts/Portal.astro';
     show('login-error', false);
     const email = el<HTMLInputElement>('email').value.trim();
     const password = el<HTMLInputElement>('password').value;
-    const { error } = await supabase().auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase().auth.signInWithPassword({ email, password });
     if (error) {
       const node = el('login-error');
       node.textContent = 'That sign-in didn\'t work. Check the email and password and try again.';
@@ -64,7 +73,7 @@ import Portal from '../layouts/Portal.astro';
       button.disabled = false;
       return;
     }
-    location.href = '/dashboard';
+    location.href = data.session ? roleHome(data.session) : '/dashboard';
   });
 
   el('reset-link').addEventListener('click', async () => {

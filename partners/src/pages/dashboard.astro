@@ -65,7 +65,7 @@ import Portal from '../layouts/Portal.astro';
     show('dash-loading', false);
     if (listing.status === 'not_a_partner') {
       const err = el('dash-error');
-      err.textContent = 'This account is not a partner account.';
+      err.innerHTML = 'This account isn\'t a partner account. Running the program? The admin area is at <a class="underline" href="/admin">/admin</a>.';
       err.hidden = false;
       return;
     }
@@ -144,7 +144,11 @@ import Portal from '../layouts/Portal.astro';
     if (String(err).includes('redirecting')) return;
     show('dash-loading', false);
     const node = el('dash-error');
-    node.textContent = String(err);
+    if (/permission denied/i.test(String(err))) {
+      node.innerHTML = 'This account isn\'t a partner account. Running the program? The admin area is at <a class="underline" href="/admin">/admin</a>.';
+    } else {
+      node.textContent = String(err);
+    }
     node.hidden = false;
   });
 </script>

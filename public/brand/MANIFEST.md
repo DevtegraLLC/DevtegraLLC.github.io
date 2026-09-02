@@ -6,7 +6,7 @@ The single home for FitCreature brand PARTS. Will drops source art into these fo
 
 | Folder | Holds (parts, not composites) | Naming |
 |---|---|---|
-| `logos/` | Wordmark/logo files in every variant needed for composition | `fc_logo_color.png` · `fc_logo_black.png` · `fc_logo_white.png` (+ `.svg` beside any where it exists) |
+| `logos/` | ✅ The FitCreature logo in three variants, PNG (transparent) + SVG each: color (black flame Fit + red/orange Creature; for light or photo grounds), black (light grounds / B&W print), white (dark grounds) | `fc_logo_color` · `fc_logo_black` · `fc_logo_white` (`.png` + `.svg`) |
 | `icons/` | App icon exports | `fc_appicon_<size>.png` (1024 is the master; others derive from it) |
 | `banners/` | Wide hero/banner art | `fc_banner_<slug>.png` |
 | `flyers/` | Flyer/poster art pieces | `fc_flyer_art_<slug>.png` |
@@ -24,17 +24,26 @@ Rules: lowercase snake_case, `fc_` prefix, one part per file, transparent backgr
 
 ## Compositional tokens (the layer Devtegra provides)
 
+**Logo palette** (from the mark's own files; use these when composing around the logo):
+
 | Token | Value |
 |---|---|
-| Indigo (brand seed) | `#6366F1` |
-| Wordmark gold | `#F0C040` |
-| Deep violet (dark top) | `#1B1530` |
-| Near-black violet (dark base) | `#0A0815` |
-| Lavender accent | `#C0C1FF` |
-| Wordmark rule | "Fit" white + "Creature" gold, weight 800, until/unless a logo FILE in `logos/` supersedes it |
-| Type | System/ui-sans for print pieces; mono for codes |
+| Ink black | `#000000` |
+| Deep red | `#9E0000` |
+| Shadow red | `#3F0000` |
+| Flame orange | `#FF8C5F` (gradient stop; the outline reads hotter) |
+| Cream highlight | `#FFE8DF` |
 
-Sources of truth for the token values live in the app code (`kBrandSeed`, the share-composite painter); update here when the app rebrands.
+**App-UI palette** (what the app itself renders; for pieces that echo the app, not the logo):
+
+| Token | Value |
+|---|---|
+| Indigo (app seed) | `#6366F1` |
+| In-app wordmark gold | `#F0C040` |
+| Deep violet / near-black (app dark bg) | `#1B1530` / `#0A0815` |
+| Lavender accent | `#C0C1FF` |
+
+Print pieces compose in the LOGO palette (warm dark ground + red/orange accents + the white logo variant). The styled-text wordmark ("Fit" white + "Creature" gold) is now only the automatic fallback if a logo file ever goes missing. Type: system/ui-sans for print; mono for codes.
 
 ## Keeping app-derived parts current
 

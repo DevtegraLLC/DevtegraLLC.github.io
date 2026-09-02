@@ -82,6 +82,10 @@ ok(all.includes('cannot be counted') || all.includes('Not counted'), 'installs f
 // The brand library rides every build (public/brand -> /assets/brand).
 ok(fs.existsSync('dist/assets/brand/icons/fc_appicon_1024.png'), 'brand library copied into the portal build');
 ok(fs.existsSync('dist/assets/brand/MANIFEST.md'), 'brand manifest rides along');
+for (const v of ['color', 'black', 'white']) {
+  ok(fs.existsSync(`dist/assets/brand/logos/fc_logo_${v}.png`) && fs.existsSync(`dist/assets/brand/logos/fc_logo_${v}.svg`),
+    `logo variant present: ${v}`);
+}
 ok(all.includes('fc_logo_white.png') && all.includes('fc_logo_black.png'), 'print templates wired to the logo slots');
 ok(all.includes('style=bw') || all.includes("style=${"), 'style variant links wired');
 

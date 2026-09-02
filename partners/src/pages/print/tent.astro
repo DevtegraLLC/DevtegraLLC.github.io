@@ -32,7 +32,7 @@ import Portal from '../../layouts/Portal.astro';
   .panel {
     position: relative; overflow: hidden;
     padding: 12mm 10mm 10mm; text-align: center;
-    background: linear-gradient(160deg, #1b1530 0%, #0a0815 78%);
+    background: linear-gradient(160deg, #1c0d08 0%, #070302 78%);
     border-radius: 3mm;
     print-color-adjust: exact; -webkit-print-color-adjust: exact;
   }
@@ -44,15 +44,15 @@ import Portal from '../../layouts/Portal.astro';
     position: relative; z-index: 1;
     margin: 6mm auto 0; width: 62mm; padding: 3mm;
     background: #ffffff; border-radius: 2.5mm;
-    box-shadow: 0 0 0 1mm rgba(240, 192, 64, 0.9);
+    box-shadow: 0 0 0 1mm rgba(255, 140, 95, 0.9);
   }
   .qr :global(svg) { display: block; width: 100%; height: auto; }
-  .code { position: relative; z-index: 1; margin-top: 4.5mm; font-size: 9pt; letter-spacing: 0.2em; color: #c0c1ff; }
-  .mono { font-family: ui-monospace, monospace; font-weight: 800; font-size: 13pt; letter-spacing: 0.18em; color: #f0c040; }
-  .hint { position: relative; z-index: 1; margin-top: 2mm; font-size: 8pt; color: #9d9ab5; }
+  .code { position: relative; z-index: 1; margin-top: 4.5mm; font-size: 9pt; letter-spacing: 0.2em; color: #ffe8df; }
+  .mono { font-family: ui-monospace, monospace; font-weight: 800; font-size: 13pt; letter-spacing: 0.18em; color: #ff8c5f; }
+  .hint { position: relative; z-index: 1; margin-top: 2mm; font-size: 8pt; color: #b09a92; }
   .glow { position: absolute; border-radius: 50%; filter: blur(14mm); opacity: 0.55; }
-  .glow.one { width: 60mm; height: 60mm; left: -22mm; top: -20mm; background: #6366f1; }
-  .glow.two { width: 55mm; height: 55mm; right: -20mm; bottom: -18mm; background: #f0c040; opacity: 0.35; }
+  .glow.one { width: 60mm; height: 60mm; left: -22mm; top: -20mm; background: #9e0000; }
+  .glow.two { width: 55mm; height: 55mm; right: -20mm; bottom: -18mm; background: #ff8c5f; opacity: 0.35; }
   .brandimg { display: block; margin: 0 auto; max-width: 60mm; max-height: 14mm; }
   /* Black & white: white ground, dark ink, no glows; the QR card keeps a
      plain border. The compositional layer for ink-friendly printing. */

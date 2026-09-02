@@ -1,0 +1,170 @@
+---
+import Portal from '../layouts/Portal.astro';
+---
+
+<Portal title="Report">
+  <h1 class="text-2xl font-bold tracking-tight">Performance report</h1>
+
+  <div class="mt-4 flex flex-wrap items-end gap-3 print:hidden">
+    <div>
+      <label for="r-from" class="block text-xs font-medium text-slate-600">From</label>
+      <input id="r-from" type="date" class="mt-1 rounded-md border border-slate-300 px-2 py-1.5 text-sm" />
+    </div>
+    <div>
+      <label for="r-to" class="block text-xs font-medium text-slate-600">To</label>
+      <input id="r-to" type="date" class="mt-1 rounded-md border border-slate-300 px-2 py-1.5 text-sm" />
+    </div>
+    <button id="r-refresh" class="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-semibold text-white hover:bg-slate-700">
+      Update
+    </button>
+    <span class="grow"></span>
+    <button id="r-csv" class="rounded-md border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-100">Download CSV</button>
+    <button id="r-print" class="rounded-md border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-100">Print summary</button>
+  </div>
+
+  <p id="r-loading" class="mt-6 text-sm text-slate-500">Loading…</p>
+  <div id="r-gate" hidden class="mt-6 rounded-lg border border-indigo-200 bg-indigo-50 p-4 text-sm text-indigo-900">
+    Reports open once the current agreements are accepted — see the <a class="underline" href="/dashboard">Overview</a> page.
+  </div>
+
+  <div id="r-body" hidden>
+    <p class="mt-6 text-sm text-slate-500">Code <span id="r-code" class="font-mono font-semibold text-slate-900"></span> · <span id="r-range"></span></p>
+
+    <div class="mt-4 grid gap-3 sm:grid-cols-3" id="r-tiles"></div>
+
+    <h2 class="mt-8 text-sm font-semibold">Daily scans by platform</h2>
+    <p id="r-suppressed" hidden class="mt-2 rounded-md bg-slate-100 p-3 text-sm text-slate-600"></p>
+    <div id="r-serieswrap" class="mt-2 overflow-x-auto">
+      <table id="r-series" class="w-full min-w-[28rem] text-sm">
+        <thead>
+          <tr class="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500">
+            <th class="py-2 pr-4">Date</th><th class="py-2 pr-4">iOS</th><th class="py-2 pr-4">Android</th>
+            <th class="py-2 pr-4">Other</th><th class="py-2">Total</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <h2 class="mt-8 text-sm font-semibold">What each number means</h2>
+    <ul id="r-definitions" class="mt-2 list-disc space-y-1 pl-5 text-sm text-slate-600"></ul>
+
+    <h2 class="mt-6 text-sm font-semibold">Please read</h2>
+    <ul id="r-caveats" class="mt-2 list-disc space-y-1 pl-5 text-sm text-slate-600"></ul>
+  </div>
+</Portal>
+
+<script>
+  import { requireSession, rpc, el, show, saveBlob, toast } from '../lib/portal';
+
+  let current: Record<string, any> | null = null;
+
+  function tile(label: string, value: string, sub = ''): string {
+    return `<div class="rounded-lg border border-slate-200 bg-white p-4">
+      <p class="text-xs uppercase tracking-wide text-slate-500">${label}</p>
+      <p class="mt-1 text-2xl font-bold">${value}</p>
+      ${sub ? `<p class="mt-1 text-xs text-slate-500">${sub}</p>` : ''}
+    </div>`;
+  }
+
+  async function load(): Promise<void> {
+    show('r-loading', true);
+    show('r-body', false);
+    show('r-gate', false);
+    const args: Record<string, unknown> = {};
+    const from = el<HTMLInputElement>('r-from').value;
+    const to = el<HTMLInputElement>('r-to').value;
+    if (from) args.p_from = from;
+    if (to) args.p_to = to;
+    const m = await rpc<Record<string, any>>('get_my_partner_metrics', args);
+    show('r-loading', false);
+    if (m.status === 'agreements_required') {
+      show('r-gate', true);
+      return;
+    }
+    if (m.status !== 'ok') {
+      toast(`Could not load the report (${m.status}).`);
+      return;
+    }
+    current = m;
+    show('r-body', true);
+    el('r-code').textContent = m.code;
+    el('r-range').textContent = `${m.from} to ${m.to}`;
+    el<HTMLInputElement>('r-from').value = m.from;
+    el<HTMLInputElement>('r-to').value = m.to;
+
+    const t = m.totals;
+    el('r-tiles').innerHTML = [
+      tile('Scans (this period)', String(t.scans_period),
+        `iOS ${t.scans_by_platform.ios} · Android ${t.scans_by_platform.android} · other ${t.scans_by_platform.other}`),
+      tile('Redemptions (all time)', String(t.redemptions_all_time),
+        `${t.redemptions_unlocked} unlocked · ${t.redemptions_pending} pending`),
+      tile('New-user redemptions', String(t.new_user_redemptions), 'signups within 72h of joining'),
+      tile('Scans (all time)', String(t.scans_all_time)),
+      tile('Scan → redemption', t.scan_to_redemption_rate != null ? `${(Number(t.scan_to_redemption_rate) * 100).toFixed(1)}%` : '–'),
+      tile('Installs', 'Not counted',
+        'Android becomes countable at store launch; iOS installs cannot be counted.'),
+    ].join('');
+
+    const suppressed = m.series_suppressed === true;
+    show('r-suppressed', suppressed);
+    show('r-serieswrap', !suppressed);
+    if (suppressed) {
+      el('r-suppressed').textContent =
+        `Daily breakdowns appear once the period has at least ${m.suppression_threshold} scans; totals above cover the whole period.`;
+    } else {
+      const tbody = el('r-series').querySelector('tbody')!;
+      tbody.innerHTML = (m.daily_series as Array<Record<string, any>>)
+        .map((d) => `<tr class="border-b border-slate-100">
+          <td class="py-1.5 pr-4">${d.date}</td><td class="py-1.5 pr-4">${d.ios}</td>
+          <td class="py-1.5 pr-4">${d.android}</td><td class="py-1.5 pr-4">${d.other}</td>
+          <td class="py-1.5 font-semibold">${d.total}</td></tr>`)
+        .join('');
+    }
+
+    el('r-definitions').innerHTML = (m.definitions as string[]).map((d) => `<li>${d}</li>`).join('');
+    el('r-caveats').innerHTML = (m.caveats as string[]).map((c) => `<li>${c}</li>`).join('');
+  }
+
+  el('r-refresh').addEventListener('click', () => void load());
+  el('r-print').addEventListener('click', () => window.print());
+  el('r-csv').addEventListener('click', () => {
+    if (!current) return;
+    const m = current;
+    const t = m.totals;
+    const lines: string[] = [];
+    lines.push(`# FitCreature partner report — code ${m.code} — ${m.from} to ${m.to}`);
+    for (const d of m.definitions as string[]) lines.push(`# ${d}`);
+    for (const c of m.caveats as string[]) lines.push(`# CAVEAT: ${c}`);
+    lines.push('metric,value');
+    lines.push(`scans_period,${t.scans_period}`);
+    lines.push(`scans_period_ios,${t.scans_by_platform.ios}`);
+    lines.push(`scans_period_android,${t.scans_by_platform.android}`);
+    lines.push(`scans_period_other,${t.scans_by_platform.other}`);
+    lines.push(`scans_all_time,${t.scans_all_time}`);
+    lines.push(`redemptions_all_time,${t.redemptions_all_time}`);
+    lines.push(`redemptions_pending,${t.redemptions_pending}`);
+    lines.push(`redemptions_unlocked,${t.redemptions_unlocked}`);
+    lines.push(`new_user_redemptions,${t.new_user_redemptions}`);
+    lines.push(`scan_to_redemption_rate,${t.scan_to_redemption_rate ?? ''}`);
+    lines.push('attributed_installs_android,not_counted');
+    lines.push('attributed_installs_ios,not_counted');
+    if (m.series_suppressed !== true) {
+      lines.push('');
+      lines.push('date,ios,android,other,total');
+      for (const d of m.daily_series as Array<Record<string, any>>) {
+        lines.push(`${d.date},${d.ios},${d.android},${d.other},${d.total}`);
+      }
+    } else {
+      lines.push(`# daily series withheld below ${m.suppression_threshold} period scans`);
+    }
+    saveBlob(new Blob([lines.join('\n')], { type: 'text/csv' }), `fitcreature_report_${m.code}_${m.from}_${m.to}.csv`);
+  });
+
+  void requireSession().then(load).catch((err) => {
+    if (!String(err).includes('redirecting')) {
+      show('r-loading', false);
+      toast(String(err));
+    }
+  });
+</script>

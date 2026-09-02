@@ -1,0 +1,32 @@
+# F91 partner portal CI: build + static assertions for partners/ (its own
+# Astro app) on every change. DEPLOYMENT lives in the DevtegraLLC/partners
+# repo, which PULLS this public repo and publishes its own GitHub Pages at
+# partners.devtegra.com (one Pages site per repo, and org policy disables
+# deploy keys, so push-based cross-repo publishing is out). After merging
+# portal changes, trigger it with:
+#   gh workflow run build.yml -R DevtegraLLC/partners
+# (a daily cron there also catches drift).
+name: Partner portal CI
+
+on:
+  push:
+    branches: [main]
+    paths: ['partners/**', '.github/workflows/deploy-partners.yml']
+  pull_request:
+    paths: ['partners/**', '.github/workflows/deploy-partners.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+        working-directory: partners
+      - run: npm test
+        working-directory: partners

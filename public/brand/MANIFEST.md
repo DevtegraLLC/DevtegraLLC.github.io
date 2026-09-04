@@ -19,7 +19,7 @@ Rules: lowercase snake_case, `fc_` prefix, one part per file, transparent backgr
 ## What consumes what
 
 - **Partner print generator** (tent + lobby pages in `partners/src/pages/print/`): the partner picks **Color or Black & White**; Color composes `logos/fc_logo_white.png` (and `banners/` art as it lands) over the brand-dark design, B&W composes `logos/fc_logo_black.png` on white. Until a logo file exists the templates fall back to the styled-text wordmark (rule below). The QR always renders dark-on-light regardless of style.
-- **devtegra.com**: pulls icons/logos from here (`/brand/...` paths) — the /fitcreature page, the home card, and /join use `icons/fc_appicon_512.png`.
+- **devtegra.com**: pulls icons/logos from here (`/brand/...` paths) — the home card and /join use `icons/fc_appicon_512.png` (rendered plain, no tinted container); the /fitcreature hero uses `logos/fc_logo_color.svg`.
 - **Marketing machine**: pulls any part by URL (`https://devtegra.com/brand/<folder>/<file>`) or from this repo, and composes posts/ads with the tokens below.
 
 ## Compositional tokens (the layer Devtegra provides)

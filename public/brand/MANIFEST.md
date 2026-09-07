@@ -6,7 +6,7 @@ The single home for FitCreature brand PARTS. Will drops source art into these fo
 
 | Folder | Holds (parts, not composites) | Naming |
 |---|---|---|
-| `logos/` | ✅ The FitCreature logo in three variants, PNG (transparent) + SVG each: color (black flame Fit + red/orange Creature; for light or photo grounds), black (light grounds / B&W print), white (dark grounds) | `fc_logo_color` · `fc_logo_black` · `fc_logo_white` (`.png` + `.svg`) |
+| `logos/` | ✅ The FitCreature logo in three variants, PNG (transparent) + SVG each: color (black flame Fit + red/orange Creature; for light or photo grounds), black (light grounds / B&W print), white (dark grounds). A `_<width>` raster derives from the SVG where a small embed needs a light file (email signatures) rather than the full-res master | `fc_logo_color` · `fc_logo_black` · `fc_logo_white` (`.png` + `.svg`); derived rasters `fc_logo_color_<width>.png` |
 | `icons/` | App icon exports | `fc_appicon_<size>.png` (1024 is the master; others derive from it) |
 | `banners/` | Wide hero/banner art | `fc_banner_<slug>.png` |
 | `flyers/` | Flyer/poster art pieces | `fc_flyer_art_<slug>.png` |

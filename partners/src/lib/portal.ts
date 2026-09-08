@@ -4,15 +4,6 @@
 
 import { authHeaders, functionsUrl, supabase } from './supabase';
 
-export interface ListingState {
-  status: string;
-  account_status?: string;
-  agreements_current?: boolean;
-  field_limits?: Record<string, number>;
-  live?: Record<string, unknown> | null;
-  draft?: Record<string, unknown> | null;
-}
-
 /** Redirect to sign-in unless a session exists; returns the session. */
 export async function requireSession(): Promise<import('@supabase/supabase-js').Session> {
   const { data } = await supabase().auth.getSession();
@@ -106,11 +97,12 @@ export function fmtDay(value: unknown): string {
 }
 
 // ---------------------------------------------------------------------------
-// Locations (F92, Decision 6.137). A partner login belongs to one BRAND and
-// may hold several of its locations (one referral code per venue); the
-// per-location pages (Locations, Members, Lobby screen, Report, Print pack)
-// act on the one the partner has selected. The choice persists per browser
-// so a multi-location manager is not re-asked on every page.
+// Locations (F92, Decisions 6.137 / 6.138). A partner login belongs to one
+// BRAND and may hold several of its locations (one referral code per venue);
+// the per-location pages (Members, Lobby screen, Report, Print pack) act on
+// the one the partner has selected. The choice persists per browser so a
+// multi-location manager is not re-asked on every page. The Locations page
+// itself edits every venue at once (one draft per brand) and has no selector.
 // ---------------------------------------------------------------------------
 
 export interface PartnerLocation {
@@ -200,8 +192,8 @@ export function mountLocationSelector(
 }
 
 /**
- * Location plumbing for the per-location pages (locations, report, print
- * pack). Loads the login's locations and mounts the selector; returns the
+ * Location plumbing for the per-location pages (report, print pack, members,
+ * screen). Loads the login's locations and mounts the selector; returns the
  * active location, or null when locations cannot be loaded (a non-partner
  * session). Null means "send no code": the server then acts on the login's
  * primary location.

@@ -61,13 +61,15 @@ ok(all.includes('sb_publishable_'), 'publishable key wired');
 
 // Wiring: the pages call the real surface.
 for (const needle of [
-  'get_my_partner_listing',
-  'save_partner_draft',
-  'submit_partner_draft',
   // Decision 6.137 brand model: brand-level listing + brand-level takedown
   'get_my_partner_brand',
   'save_partner_brand_draft',
   'submit_partner_brand_draft',
+  // Decision 6.138: one draft per brand carries every location change
+  'save_partner_locations_draft',
+  'p_locations',
+  'location_required',
+  'created_locations',
   'set_partner_listing_published',
   'p_brand_id',
   'get_partner_agreement_state',
@@ -93,6 +95,12 @@ for (const needle of [
   ok(all.includes(needle), `wired: ${needle}`);
 }
 
+// The per-location draft RPCs were DROPPED with Decision 6.138; a bundle
+// still naming one would call a function that no longer exists.
+for (const gone of ['get_my_partner_listing', 'save_partner_draft', 'submit_partner_draft']) {
+  ok(!all.includes(gone), `retired RPC absent: ${gone}`);
+}
+
 // The lobby screen is a public page: no session guard, the token rides the
 // URL, and it must never fetch with a signed-in session (a leaked link must
 // not carry a login). Its own bundle is the one that names partner_display.
@@ -113,14 +121,24 @@ for (const s of ['alieo', 'brutoh', 'chi', 'karmuth', 'wolfie']) {
   ok(fs.existsSync(`dist/assets/brand/creatures/fc_creature_${s}_front.png`), `creature still present: ${s}`);
 }
 
-// F92 step 4: the F91 pages carry the location selector (hidden for a
-// single-location login) and the print layouts accept the location on
+// F92 step 4: the per-location pages carry the location selector (hidden for
+// a single-location login) and the print layouts accept the location on
 // their URL, so a multi-location partner acts on the venue they picked.
-for (const page of ['listing', 'report', 'print-pack']) {
+for (const page of ['report', 'print-pack']) {
   ok(fs.readFileSync(`dist/${page}/index.html`, 'utf8').includes('id="loc-select"'), `location selector on ${page}`);
 }
 ok(all.includes('p_code_id'), 'per-location RPC argument wired');
 ok(all.includes('code_id='), 'per-location code rides the print URLs');
+// Decision 6.138: the Locations page edits EVERY venue at once (one draft per
+// brand, one submission), so it has no selector and a partner can add venues.
+const listingHtml = fs.readFileSync('dist/listing/index.html', 'utf8');
+const listingBundle = [...listingHtml.matchAll(/<script[^>]+src="([^"]+)"/g)]
+  .map((m) => fs.readFileSync(path.join('dist', m[1].replace(/^\//, '')), 'utf8'))
+  .join('\n');
+ok(!listingHtml.includes('loc-select') && !listingBundle.includes('loc-select'), 'locations page has no per-location selector');
+ok(listingHtml.includes('id="loc-add"'), 'locations page lets the partner add a venue');
+ok(listingBundle.includes('save_partner_locations_draft') && listingBundle.includes('submit_partner_brand_draft'),
+  'locations page saves + submits the one brand draft');
 // The logo is brand-level (Decision 6.137): the upload never names a location.
 const brandHtml = fs.readFileSync('dist/brand/index.html', 'utf8');
 const brandBundle = [...brandHtml.matchAll(/<script[^>]+src="([^"]+)"/g)]

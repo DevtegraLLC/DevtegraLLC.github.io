@@ -193,6 +193,48 @@ export function mountLocationSelector(
   return active;
 }
 
+/**
+ * Location plumbing for the F91 pages (listing, report, print pack) that
+ * predate the selector. Loads the login's locations and mounts the selector;
+ * returns the active location, or null when locations cannot be loaded (an
+ * older backend, a non-partner session). Null means "send no code": the
+ * server then acts on the login's primary location exactly as before, so a
+ * portal deployed ahead of its backend still works for every single-location
+ * partner.
+ */
+export async function initLocationSelector(
+  selectId: string,
+  wrapId: string,
+  onChange: (l: PartnerLocation) => void,
+): Promise<PartnerLocation | null> {
+  let state: LocationsState;
+  try {
+    state = await loadLocations();
+  } catch {
+    return null;
+  }
+  if (state.status !== 'ok' || !state.locations?.length) return null;
+  return mountLocationSelector(selectId, wrapId, state.locations, onChange);
+}
+
+/** `{ p_code_id }` for an RPC call, or `{}` when no location is selected. */
+export function codeArg(active: PartnerLocation | null): Record<string, unknown> {
+  return active ? { p_code_id: active.code_id } : {};
+}
+
+/** `?code_id=` for an edge-function URL, or '' when no location is selected. */
+export function codeQuery(active: PartnerLocation | null): string {
+  return active ? `?code_id=${encodeURIComponent(active.code_id)}` : '';
+}
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** A `code_id` carried on the page URL (the print layouts), validated. */
+export function codeIdFromUrl(): string | null {
+  const v = new URLSearchParams(location.search).get('code_id');
+  return v && UUID_RE.test(v) ? v : null;
+}
+
 /** The public lobby-screen URL for a display token (the token is the capability). */
 export function displayUrl(token: string): string {
   return `${location.origin}/display?t=${token}`;

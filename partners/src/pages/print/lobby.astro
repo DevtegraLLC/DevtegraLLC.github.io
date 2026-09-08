@@ -72,7 +72,7 @@ import Portal from '../../layouts/Portal.astro';
 </style>
 
 <script>
-  import { requireSession, callFn, callFnJson, el } from '../../lib/portal';
+  import { requireSession, callFn, callFnJson, el, codeIdFromUrl } from '../../lib/portal';
 
   const bw = new URLSearchParams(location.search).get('style') === 'bw';
   if (bw) document.querySelector('.sheet')!.classList.add('bw');
@@ -83,12 +83,17 @@ import Portal from '../../layouts/Portal.astro';
   });
   logo.src = bw ? '/assets/brand/logos/fc_logo_black.png' : '/assets/brand/logos/fc_logo_white.png';
 
+  // ?code_id= (from the print-pack page's link) picks the location; absent =
+  // the login's primary (F92 step 4).
+  const codeId = codeIdFromUrl();
+  const loc = codeId ? { code_id: codeId } : {};
+
   void requireSession().then(async () => {
-    const manifest = await callFnJson<Record<string, any>>('partner_print_pack', { format: 'manifest' });
+    const manifest = await callFnJson<Record<string, any>>('partner_print_pack', { format: 'manifest', ...loc });
     el('lobby-code').textContent = manifest.code;
     el('lobby-head').textContent = manifest.copy[0];
     el('lobby-sub').textContent = manifest.copy[1] ?? '';
-    const svgRes = await callFn('partner_print_pack', { variant: 'standard', format: 'svg' });
+    const svgRes = await callFn('partner_print_pack', { variant: 'standard', format: 'svg', ...loc });
     el('lobby-qr').innerHTML = await svgRes.text();
   }).catch((err) => {
     if (!String(err).includes('redirecting')) {

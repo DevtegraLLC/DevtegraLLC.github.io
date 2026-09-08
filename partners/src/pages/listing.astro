@@ -5,60 +5,28 @@ import Portal from '../layouts/Portal.astro';
 <Portal title="Your locations">
   <h1 class="text-2xl font-bold tracking-tight">Your locations</h1>
   <p class="mt-2 text-sm text-slate-600">
-    Each venue has its own address, map pin, and location-only perks. Your name, website, logo, and the
-    perks every venue honors are set once under <a class="underline" href="/brand">Brand</a>. Changes
-    here go to the FitCreature team for review before they appear in the app.
+    Every venue on your card, edited together and sent to the FitCreature team as one submission.
+    Each location has its own name, address, map pin, and location-only perks. Add as many venues as
+    you run: a new venue gets its code, printable QR, and lobby-screen profile once the submission is
+    approved. Your name, website, logo, and the perks every venue honors live under
+    <a class="underline" href="/brand">Brand</a>.
   </p>
-
-  <div id="loc-wrap" hidden class="mt-4">
-    <label for="loc-select" class="block text-xs font-medium text-slate-600">Location</label>
-    <select id="loc-select" class="mt-1 rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm"></select>
-  </div>
-  <p id="loc-brand" class="mt-3 text-sm font-medium" hidden></p>
 
   <p id="listing-loading" class="mt-4 text-sm text-slate-500">Loading…</p>
 
   <div id="status-banner" hidden class="mt-4 rounded-lg border p-4 text-sm"></div>
+  <p id="scope-hint" hidden class="mt-2 text-xs text-slate-500">
+    Your card is shown to players near your venues, so every location needs its map pin (latitude and
+    longitude) before it can go live.
+  </p>
 
   <form id="listing-form" hidden class="mt-6 space-y-6">
-    <div>
-      <label for="f-label" class="block text-sm font-medium">Location name</label>
-      <input id="f-label" type="text" placeholder="Downtown, North, Round Rock…" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
-      <p class="mt-1 text-xs text-slate-500"><span id="c-label"></span> · how this venue is told apart from your others in the app · leave empty for a single location</p>
-    </div>
-    <div>
-      <label for="f-address" class="block text-sm font-medium">Address</label>
-      <input id="f-address" type="text" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
-      <p class="mt-1 text-xs text-slate-500"><span id="c-address"></span> · one line, around 10-15 words</p>
-    </div>
-    <div class="grid grid-cols-2 gap-4">
-      <div>
-        <label for="f-lat" class="block text-sm font-medium">Latitude</label>
-        <input id="f-lat" type="text" inputmode="decimal" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
-      </div>
-      <div>
-        <label for="f-lng" class="block text-sm font-medium">Longitude</label>
-        <input id="f-lng" type="text" inputmode="decimal" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
-      </div>
-      <p class="col-span-2 -mt-2 text-xs text-slate-500">
-        This venue's map pin (both together, or leave both empty to keep the current one). The app
-        decides which players see your card from the pin, so each location needs one.
-      </p>
-    </div>
+    <div id="loc-cards" class="space-y-6"></div>
 
-    <div>
-      <div class="flex items-center justify-between">
-        <h2 class="text-sm font-semibold">Perks at this location only</h2>
-        <button type="button" id="perk-add" class="rounded-md border border-slate-300 px-3 py-1 text-xs hover:bg-slate-100">
-          Add perk
-        </button>
-      </div>
-      <p class="mt-1 text-xs text-slate-500">
-        Up to <span id="c-maxperks"></span> offers honored at this venue. Discount codes: letters and numbers only.
-        Offers every venue honors go under <a class="underline" href="/brand">Brand</a>.
-      </p>
-      <div id="perk-rows" class="mt-3 space-y-3"></div>
-    </div>
+    <button type="button" id="loc-add"
+      class="w-full rounded-lg border-2 border-dashed border-slate-300 px-4 py-3 text-sm font-medium text-slate-600 hover:border-indigo-400 hover:text-indigo-600">
+      + Add location
+    </button>
 
     <div id="form-errors" hidden class="rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800"></div>
 
@@ -76,16 +44,7 @@ import Portal from '../layouts/Portal.astro';
 </Portal>
 
 <script>
-  import {
-    requireSession,
-    rpc,
-    el,
-    show,
-    toast,
-    initLocationSelector,
-    codeArg,
-    type PartnerLocation,
-  } from '../lib/portal';
+  import { requireSession, rpc, el, show, toast } from '../lib/portal';
 
   interface Perk {
     title: string | null;
@@ -93,25 +52,38 @@ import Portal from '../layouts/Portal.astro';
     discount_code: string | null;
   }
 
+  // One live venue as get_my_partner_brand().live.locations reports it.
+  interface LiveLocation {
+    code_id: string;
+    code: string;
+    label: string | null;
+    address: string | null;
+    latitude: number | null;
+    longitude: number | null;
+    has_location: boolean;
+    held: boolean;
+    perks: Perk[];
+  }
+
+  // The wire shape of one draft entry (save_partner_locations_draft).
+  interface LocationEntry {
+    code_id?: string;
+    label: string | null;
+    address: string | null;
+    latitude: string | number | null;
+    longitude: string | number | null;
+    perks: Perk[];
+  }
+
   let limits: Record<string, number> = {};
   let inReview = false;
-  // The selected location (F92); null = the login's primary, sent as no code.
-  let active: PartnerLocation | null = null;
+  let liveByCode = new Map<string, LiveLocation>();
 
-  function counter(spanId: string, input: HTMLInputElement, key: string): void {
-    const update = () => {
-      el(spanId).textContent = `${input.value.length}/${limits[key] ?? '…'} characters`;
-    };
-    input.oninput = update;
-    update();
-  }
+  const esc = (v: unknown): string =>
+    String(v ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
 
-  // Everything a location switch must not carry over from the last one.
-  function resetForm(): void {
-    show('status-banner', false);
-    show('form-errors', false);
-    show('listing-form', false);
-  }
+  const input = (root: ParentNode, key: string): HTMLInputElement =>
+    root.querySelector(`[data-k="${key}"]`) as HTMLInputElement;
 
   function perkRow(perk: Perk = { title: '', description: '', discount_code: '' }): HTMLElement {
     const row = document.createElement('div');
@@ -121,29 +93,161 @@ import Portal from '../layouts/Portal.astro';
       <input data-k="description" placeholder="Where and how to use it (optional)" class="rounded-md border border-slate-300 px-2 py-1.5 text-sm" />
       <input data-k="discount_code" placeholder="CODE" class="rounded-md border border-slate-300 px-2 py-1.5 text-sm uppercase" />
       <button type="button" class="perk-remove text-sm text-slate-400 hover:text-rose-600">Remove</button>`;
-    (row.querySelector('[data-k="title"]') as HTMLInputElement).value = perk.title ?? '';
-    (row.querySelector('[data-k="description"]') as HTMLInputElement).value = perk.description ?? '';
-    (row.querySelector('[data-k="discount_code"]') as HTMLInputElement).value = perk.discount_code ?? '';
+    input(row, 'title').value = perk.title ?? '';
+    input(row, 'description').value = perk.description ?? '';
+    input(row, 'discount_code').value = perk.discount_code ?? '';
     row.querySelector('.perk-remove')!.addEventListener('click', () => row.remove());
     return row;
   }
 
-  function readPerks(): Perk[] {
-    return [...document.querySelectorAll('.perk-row')].map((row) => ({
-      title: (row.querySelector('[data-k="title"]') as HTMLInputElement).value || null,
-      description: (row.querySelector('[data-k="description"]') as HTMLInputElement).value || null,
-      discount_code: (row.querySelector('[data-k="discount_code"]') as HTMLInputElement).value || null,
+  function readPerks(card: HTMLElement): Perk[] {
+    return [...card.querySelectorAll('.perk-row')].map((row) => ({
+      title: input(row, 'title').value || null,
+      description: input(row, 'description').value || null,
+      discount_code: input(row, 'discount_code').value || null,
     }));
   }
 
-  function fields(): Record<string, unknown> {
-    return {
-      label: el<HTMLInputElement>('f-label').value || null,
-      address: el<HTMLInputElement>('f-address').value || null,
-      latitude: el<HTMLInputElement>('f-lat').value || null,
-      longitude: el<HTMLInputElement>('f-lng').value || null,
-      perks: readPerks(),
+  // One card per venue: a live location (code_id set) or a new one (none yet).
+  function locationCard(live: LiveLocation | null, seed: Partial<LocationEntry>): HTMLElement {
+    const card = document.createElement('section');
+    card.className = 'loc-card rounded-lg border border-slate-200 bg-slate-50 p-5 space-y-4';
+    if (live) card.dataset.codeId = live.code_id;
+    const meta: string[] = [];
+    if (live) {
+      meta.push(`<span class="font-mono">${esc(live.code)}</span>`);
+      if (!live.has_location) meta.push('no map pin yet');
+      if (!live.held) meta.push('managed by another login');
+    } else {
+      meta.push('new venue: its code is assigned at approval');
+    }
+    card.innerHTML = `
+      <div class="flex items-start justify-between gap-3">
+        <div>
+          <h2 class="text-sm font-semibold" data-title></h2>
+          <p class="text-xs text-slate-500">${meta.join(' · ')}</p>
+        </div>
+        ${live ? '' : '<button type="button" data-remove class="text-sm text-slate-400 hover:text-rose-600">Remove</button>'}
+      </div>
+      <div>
+        <label class="block text-sm font-medium">Location name</label>
+        <input data-k="label" type="text" placeholder="Downtown, North, Round Rock…" class="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm" />
+        <p class="mt-1 text-xs text-slate-500"><span data-count="label"></span> · how this venue is told apart from your others in the app · leave empty for a single location</p>
+      </div>
+      <div>
+        <label class="block text-sm font-medium">Address</label>
+        <input data-k="address" type="text" class="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm" />
+        <p class="mt-1 text-xs text-slate-500"><span data-count="address"></span> · one line, around 10-15 words</p>
+      </div>
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-medium">Latitude</label>
+          <input data-k="latitude" type="text" inputmode="decimal" class="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium">Longitude</label>
+          <input data-k="longitude" type="text" inputmode="decimal" class="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm" />
+        </div>
+        <p class="col-span-2 -mt-2 text-xs text-slate-500">
+          This venue's map pin (both together${live ? ', or leave both empty to keep the current one' : ''}).
+          The app decides which players see your card from the pin, so each location needs one.
+        </p>
+      </div>
+      <div>
+        <div class="flex items-center justify-between">
+          <h3 class="text-sm font-semibold">Perks at this location only</h3>
+          <button type="button" data-perk-add class="rounded-md border border-slate-300 bg-white px-3 py-1 text-xs hover:bg-slate-100">
+            Add perk
+          </button>
+        </div>
+        <p class="mt-1 text-xs text-slate-500">
+          Up to ${esc(limits.max_perks ?? 5)} offers honored at this venue. Discount codes: letters and numbers only.
+          Offers every venue honors go under <a class="underline" href="/brand">Brand</a>.
+        </p>
+        <div data-perk-rows class="mt-3 space-y-3"></div>
+      </div>`;
+
+    input(card, 'label').value = String(seed.label ?? '');
+    input(card, 'address').value = String(seed.address ?? '');
+    input(card, 'latitude').value = seed.latitude != null ? String(seed.latitude) : '';
+    input(card, 'longitude').value = seed.longitude != null ? String(seed.longitude) : '';
+    const rows = card.querySelector('[data-perk-rows]') as HTMLElement;
+    for (const perk of seed.perks ?? []) rows.appendChild(perkRow(perk));
+
+    const title = card.querySelector('[data-title]') as HTMLElement;
+    const retitle = () => {
+      const label = input(card, 'label').value.trim();
+      const address = input(card, 'address').value.trim();
+      title.textContent = label || address || (live ? 'Unnamed location' : 'New location');
     };
+    for (const key of ['label', 'address'] as const) {
+      const field = input(card, key);
+      const count = card.querySelector(`[data-count="${key}"]`) as HTMLElement;
+      const update = () => {
+        count.textContent = `${field.value.length}/${limits[key] ?? '…'} characters`;
+        retitle();
+      };
+      field.oninput = update;
+      update();
+    }
+
+    card.querySelector('[data-perk-add]')!.addEventListener('click', () => {
+      if (card.querySelectorAll('.perk-row').length >= (limits.max_perks ?? 5)) {
+        toast(`Up to ${limits.max_perks ?? 5} perks per location.`);
+        return;
+      }
+      rows.appendChild(perkRow());
+    });
+    card.querySelector('[data-remove]')?.addEventListener('click', () => card.remove());
+    return card;
+  }
+
+  function cards(): HTMLElement[] {
+    return [...el('loc-cards').querySelectorAll<HTMLElement>('.loc-card')];
+  }
+
+  function readCard(card: HTMLElement): LocationEntry {
+    const entry: LocationEntry = {
+      label: input(card, 'label').value || null,
+      address: input(card, 'address').value || null,
+      latitude: input(card, 'latitude').value || null,
+      longitude: input(card, 'longitude').value || null,
+      perks: readPerks(card),
+    };
+    if (card.dataset.codeId) entry.code_id = card.dataset.codeId;
+    return entry;
+  }
+
+  // Normalized so a live venue and its untouched card compare equal: empty
+  // strings are null, codes are uppercased, the pin is numeric.
+  const text = (v: unknown): string | null => {
+    const s = v == null ? '' : String(v).trim();
+    return s === '' ? null : s;
+  };
+  const coord = (v: unknown): string | null => {
+    const s = text(v);
+    if (s == null) return null;
+    const n = Number(s);
+    return Number.isFinite(n) ? String(n) : s;
+  };
+  const perkKey = (perks: Perk[]): string =>
+    JSON.stringify(perks.map((p) => [text(p.title), text(p.description), text(p.discount_code)?.toUpperCase() ?? null]));
+  const entryKey = (e: { label: unknown; address: unknown; latitude: unknown; longitude: unknown; perks: Perk[] }): string =>
+    JSON.stringify([text(e.label), text(e.address), coord(e.latitude), coord(e.longitude), perkKey(e.perks ?? [])]);
+
+  // Only new venues and live venues whose card differs from the live row are
+  // sent; the sent order is the card order so error indices map back.
+  function collect(): { entries: LocationEntry[]; sent: HTMLElement[] } {
+    const entries: LocationEntry[] = [];
+    const sent: HTMLElement[] = [];
+    for (const card of cards()) {
+      const entry = readCard(card);
+      const live = entry.code_id ? liveByCode.get(entry.code_id) : undefined;
+      if (live && entryKey(live) === entryKey(entry)) continue;
+      entries.push(entry);
+      sent.push(card);
+    }
+    return { entries, sent };
   }
 
   function banner(kind: 'info' | 'warn' | 'good', text: string): void {
@@ -159,120 +263,258 @@ import Portal from '../layouts/Portal.astro';
     node.textContent = text;
   }
 
-  function showErrors(errors: Array<{ field: string; code: string }>): void {
+  const CODE_TEXT: Record<string, string> = {
+    required: 'is required',
+    max_length: 'is too long',
+    emoji: 'cannot contain emoji',
+    url_in_name: 'cannot contain a link',
+    html: 'cannot contain < or >',
+    zero_width: 'contains hidden characters',
+    control_or_astral: 'contains unsupported characters',
+    format: 'must be letters and numbers only',
+    not_an_array: 'could not be read',
+    max_perks: `can hold up to ${limits.max_perks ?? 5} perks`,
+  };
+  const FIELD_TEXT: Record<string, string> = {
+    label: 'location name',
+    address: 'address',
+    title: 'title',
+    description: 'description',
+    discount_code: 'discount code',
+    perks: 'perks',
+  };
+  const PIN_TEXT: Record<string, string> = {
+    pair_required: 'enter both latitude and longitude, or leave both empty',
+    out_of_range: 'latitude and longitude are out of range',
+    not_a_number: 'latitude and longitude must be numbers',
+    required: 'needs its map pin (latitude + longitude) before it can go live',
+  };
+
+  // Every server field becomes a readable line; the location index (1-based
+  // in the SENT array) is returned so the card can be highlighted.
+  function describe(field: string, code: string): { text: string; index: number | null } {
+    const readable = CODE_TEXT[code] ?? code.replaceAll('_', ' ');
+    const m = /^location_(\d+)(?:_(.+))?$/.exec(field);
+    if (!m) {
+      if (field === 'locations') {
+        return {
+          text: code === 'max_locations'
+            ? `Up to ${limits.max_draft_locations ?? 50} locations per submission.`
+            : `Locations ${readable}.`,
+          index: null,
+        };
+      }
+      if (field === 'draft' && code === 'empty') {
+        return { text: 'Nothing to submit yet: change a location or add a venue first.', index: null };
+      }
+      if (field === 'business_name') {
+        return { text: `Your brand's business name ${readable} (under Brand).`, index: null };
+      }
+      return { text: `${field.replaceAll('_', ' ')}: ${readable}`, index: null };
+    }
+    const index = Number(m[1]);
+    const rest = m[2];
+    if (!rest) {
+      const whole: Record<string, string> = {
+        unknown_location: 'that venue is no longer part of your brand',
+        duplicate_location: 'the same venue appears twice',
+        not_an_object: 'could not be read',
+      };
+      return { text: `Location ${index}: ${whole[code] ?? readable}.`, index };
+    }
+    if (rest === 'location') {
+      const pin = PIN_TEXT[code] ?? readable;
+      return { text: code === 'required' ? `Location ${index} ${pin}.` : `Location ${index}: ${pin}.`, index };
+    }
+    const perk = /^perk_(\d+)_(.+)$/.exec(rest);
+    if (perk) {
+      return { text: `Location ${index}, perk ${perk[1]}: ${FIELD_TEXT[perk[2]] ?? perk[2]} ${readable}.`, index };
+    }
+    return { text: `Location ${index}: ${FIELD_TEXT[rest] ?? rest.replaceAll('_', ' ')} ${readable}.`, index };
+  }
+
+  function clearHighlights(): void {
+    for (const card of cards()) card.classList.remove('ring-2', 'ring-rose-400');
+  }
+
+  function showErrors(errors: Array<{ field: string; code: string }>, sent: HTMLElement[]): void {
+    clearHighlights();
     const node = el('form-errors');
     node.hidden = false;
-    node.innerHTML = `<p class="font-semibold">A few things to adjust:</p><ul class="mt-2 list-disc pl-5">${errors
-      .map((e) => `<li>${e.field.replaceAll('_', ' ')}: ${e.code.replaceAll('_', ' ')}</li>`)
-      .join('')}</ul>`;
+    node.innerHTML = '';
+    const head = document.createElement('p');
+    head.className = 'font-semibold';
+    head.textContent = 'A few things to adjust:';
+    node.appendChild(head);
+    const list = document.createElement('ul');
+    list.className = 'mt-2 list-disc pl-5';
+    for (const e of errors) {
+      const { text, index } = describe(String(e.field ?? ''), String(e.code ?? ''));
+      const li = document.createElement('li');
+      li.textContent = text;
+      list.appendChild(li);
+      const card = index != null ? sent[index - 1] : undefined;
+      if (card) card.classList.add('ring-2', 'ring-rose-400');
+    }
+    node.appendChild(list);
+    const first = sent.find((c) => c.classList.contains('ring-rose-400'));
+    first?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  function setEditing(enabled: boolean): void {
+    el<HTMLButtonElement>('btn-save').disabled = !enabled;
+    el<HTMLButtonElement>('btn-submit').disabled = !enabled;
+    el<HTMLButtonElement>('loc-add').disabled = !enabled;
+    for (const field of el('listing-form').querySelectorAll<HTMLInputElement | HTMLButtonElement>('input, button')) {
+      if (field.id === 'btn-save' || field.id === 'btn-submit' || field.id === 'loc-add') continue;
+      field.disabled = !enabled;
+    }
   }
 
   async function load(): Promise<void> {
-    resetForm();
+    show('status-banner', false);
+    show('form-errors', false);
+    show('listing-form', false);
     show('listing-loading', true);
-    const listing = await rpc<Record<string, any>>('get_my_partner_listing', codeArg(active));
+    const brand = await rpc<Record<string, any>>('get_my_partner_brand');
     show('listing-loading', false);
-    if (listing.status !== 'ok') {
-      banner('warn', `Could not load your listing (${listing.status}).`);
+    if (brand.status !== 'ok') {
+      banner('warn', `Could not load your locations (${brand.status}).`);
       return;
     }
-    limits = listing.field_limits ?? {};
-    el('c-maxperks').textContent = String(limits.max_perks ?? 5);
+    limits = brand.field_limits ?? {};
+    CODE_TEXT.max_perks = `can hold up to ${limits.max_perks ?? 5} perks`;
 
-    const live = (listing.live ?? {}) as Record<string, any>;
-    const draft = (listing.draft ?? null) as Record<string, any> | null;
-    const brand = (listing.brand ?? {}) as Record<string, any>;
-    const source = draft ?? live;
+    const live = (brand.live ?? {}) as Record<string, any>;
+    const draft = (brand.draft ?? null) as Record<string, any> | null;
     inReview = draft?.status === 'submitted';
+    const liveLocations = (live.locations ?? []) as LiveLocation[];
+    liveByCode = new Map(liveLocations.map((l) => [l.code_id, l]));
+    const draftEntries = ((draft?.locations ?? []) as Array<Record<string, any>>);
+    const draftByCode = new Map<string, Record<string, any>>();
+    const newEntries: Array<Record<string, any>> = [];
+    for (const entry of draftEntries) {
+      if (typeof entry.code_id === 'string' && liveByCode.has(entry.code_id)) draftByCode.set(entry.code_id, entry);
+      else if (entry.code_id == null) newEntries.push(entry);
+    }
 
-    const brandLine = el('loc-brand');
-    brandLine.textContent = `${brand.name ?? ''} · ${live.code ?? ''}`;
-    brandLine.hidden = !brand.name;
+    const wrap = el('loc-cards');
+    wrap.innerHTML = '';
+    for (const l of liveLocations) {
+      const d = draftByCode.get(l.code_id);
+      // A draft entry replaces label / address / perks wholesale; a missing
+      // pin in the draft means "keep the live one", so the live pin shows.
+      const seed: Partial<LocationEntry> = d
+        ? {
+            label: (d.label as string | undefined) ?? null,
+            address: (d.address as string | undefined) ?? null,
+            latitude: d.latitude ?? l.latitude,
+            longitude: d.longitude ?? l.longitude,
+            perks: (d.perks ?? []) as Perk[],
+          }
+        : { label: l.label, address: l.address, latitude: l.latitude, longitude: l.longitude, perks: l.perks ?? [] };
+      wrap.appendChild(locationCard(l, seed));
+    }
+    for (const d of newEntries) {
+      wrap.appendChild(
+        locationCard(null, {
+          label: (d.label as string | undefined) ?? null,
+          address: (d.address as string | undefined) ?? null,
+          latitude: d.latitude ?? null,
+          longitude: d.longitude ?? null,
+          perks: (d.perks ?? []) as Perk[],
+        }),
+      );
+    }
 
-    el<HTMLInputElement>('f-label').value = String(source.label ?? '');
-    el<HTMLInputElement>('f-address').value = String(source.address ?? '');
-    el<HTMLInputElement>('f-lat').value = source.latitude != null ? String(source.latitude) : '';
-    el<HTMLInputElement>('f-lng').value = source.longitude != null ? String(source.longitude) : '';
-    const rows = el('perk-rows');
-    rows.innerHTML = '';
-    for (const perk of (source.perks ?? []) as Perk[]) rows.appendChild(perkRow(perk));
+    show('scope-hint', live.scope === 'regional');
 
-    counter('c-label', el<HTMLInputElement>('f-label'), 'label');
-    counter('c-address', el<HTMLInputElement>('f-address'), 'address');
-
+    const pending = draftEntries.length;
     if (inReview) {
       banner('info', 'Your changes are with the FitCreature team. Editing reopens once the review finishes.');
     } else if (draft?.status === 'changes_requested') {
       banner('warn', `Changes requested: ${draft.review_note ?? 'see the note from the team.'} Edit below and resubmit.`);
     } else if (draft) {
-      banner('info', 'You have a draft in progress. Submit it when it\'s ready.');
+      banner(
+        'info',
+        pending > 0
+          ? `You have a draft in progress with ${pending} location change${pending === 1 ? '' : 's'}. Submit it when it's ready.`
+          : "You have a draft in progress. Submit it when it's ready.",
+      );
     }
 
     show('listing-form', true);
-    el<HTMLButtonElement>('btn-save').disabled = inReview;
-    el<HTMLButtonElement>('btn-submit').disabled = inReview;
+    setEditing(!inReview);
   }
 
-  el('perk-add').addEventListener('click', () => {
-    if (document.querySelectorAll('.perk-row').length >= (limits.max_perks ?? 5)) {
-      toast(`Up to ${limits.max_perks ?? 5} perks.`);
+  el('loc-add').addEventListener('click', () => {
+    const max = limits.max_draft_locations ?? 50;
+    if (collect().entries.length >= max) {
+      toast(`Up to ${max} location changes per submission.`);
       return;
     }
-    el('perk-rows').appendChild(perkRow());
+    const card = locationCard(null, { perks: [] });
+    el('loc-cards').appendChild(card);
+    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    input(card, 'label').focus();
   });
 
-  el<HTMLFormElement>('listing-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
+  // Saves the draft; returns the sent cards on success, null when the caller
+  // should stop (errors already shown).
+  async function save(): Promise<HTMLElement[] | null> {
     show('form-errors', false);
-    const res = await rpc<Record<string, any>>('save_partner_draft', { p: fields(), ...codeArg(active) });
+    clearHighlights();
+    const { entries, sent } = collect();
+    const res = await rpc<Record<string, any>>('save_partner_locations_draft', { p_locations: entries });
     if (res.status === 'invalid') {
-      showErrors(res.errors ?? []);
-      return;
+      showErrors(res.errors ?? [], sent);
+      return null;
+    }
+    if (res.status === 'in_review') {
+      banner('info', 'Your changes are already with the team.');
+      return null;
     }
     if (res.status !== 'ok') {
       toast(`Could not save (${res.status}).`);
-      return;
+      return null;
     }
+    return sent;
+  }
+
+  el<HTMLFormElement>('listing-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const sent = await save();
+    if (!sent) return;
     toast('Draft saved.');
-    banner('info', "You have a draft in progress. Submit it when it's ready.");
+    banner(
+      'info',
+      sent.length > 0
+        ? `You have a draft in progress with ${sent.length} location change${sent.length === 1 ? '' : 's'}. Submit it when it's ready.`
+        : 'Draft saved with no location changes. Edit a venue or add one, then submit.',
+    );
   });
 
   el('btn-submit').addEventListener('click', async () => {
-    show('form-errors', false);
-    const saved = await rpc<Record<string, any>>('save_partner_draft', { p: fields(), ...codeArg(active) });
-    if (saved.status === 'invalid') {
-      showErrors(saved.errors ?? []);
-      return;
-    }
-    if (saved.status === 'in_review') {
-      banner('info', 'Your changes are already with the team.');
-      return;
-    }
-    const res = await rpc<Record<string, any>>('submit_partner_draft', codeArg(active));
+    const sent = await save();
+    if (!sent) return;
+    const res = await rpc<Record<string, any>>('submit_partner_brand_draft');
     if (res.status === 'ok') {
       banner('good', 'Submitted. The FitCreature team will review it shortly.');
-      el<HTMLButtonElement>('btn-save').disabled = true;
-      el<HTMLButtonElement>('btn-submit').disabled = true;
+      setEditing(false);
     } else if (res.status === 'agreements_required') {
       banner('warn', 'Please accept the current agreements on the Overview page first.');
-    } else if (res.status === 'location_required') {
-      banner('warn', 'This location needs its map pin before it can go live. Add latitude and longitude above.');
-    } else if (res.status === 'invalid') {
-      showErrors(res.errors ?? []);
+    } else if (res.status === 'location_required' || res.status === 'invalid') {
+      showErrors(res.errors ?? [], sent);
+    } else if (res.status === 'in_review') {
+      banner('info', 'Your changes are already with the team.');
+    } else if (res.status === 'no_draft') {
+      banner('warn', 'Nothing to submit yet: change a location or add a venue first.');
     } else {
       toast(`Could not submit (${res.status}).`);
     }
   });
 
-  async function init(): Promise<void> {
-    active = await initLocationSelector('loc-select', 'loc-wrap', (l) => {
-      active = l;
-      void load().catch((err) => banner('warn', String(err)));
-    });
-    await load();
-  }
-
-  void requireSession().then(init).catch((err) => {
+  void requireSession().then(load).catch((err) => {
     if (!String(err).includes('redirecting')) {
       show('listing-loading', false);
       banner('warn', String(err));

@@ -93,53 +93,83 @@ import Portal from '../layouts/Portal.astro';
   const esc = (v: unknown): string =>
     String(v ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
 
-  // One queue entry is either a BRAND draft (name / website / logo / perks
-  // every location honors) or a LOCATION draft (label / address / pin / that
-  // venue's perks); Decision 6.137.
+  // One queue entry is the brand's single draft (Decision 6.138): the brand
+  // section (applied only when brand_touched), the logo, and a `locations`
+  // array whose entries edit a live venue (kind 'edit') or add one ('new').
   function draftCard(entry: Record<string, any>): HTMLElement {
     const d = entry.draft;
     const live = entry.live ?? {};
-    const isBrand = entry.kind === 'brand';
     const card = document.createElement('div');
     card.className = 'rounded-lg border border-slate-200 bg-white p-5';
     const perks = (d.perks as Array<Record<string, any>>) ?? [];
+    const dot = '<span class="text-slate-300">·</span>';
+    const cell = (v: unknown) => (v == null || v === '' ? dot : esc(v));
     const row = (label: string, liveVal: unknown, draftVal: unknown) => {
       const changed = String(liveVal ?? '') !== String(draftVal ?? '');
-      const dot = '<span class="text-slate-300">·</span>';
       return `<tr class="${changed ? 'bg-amber-50' : ''}">
         <td class="py-1 pr-3 text-xs uppercase tracking-wide text-slate-500">${label}</td>
-        <td class="py-1 pr-3 text-slate-500">${liveVal == null || liveVal === '' ? dot : esc(liveVal)}</td>
-        <td class="py-1 font-medium">${draftVal == null || draftVal === '' ? dot : esc(draftVal)}</td></tr>`;
+        <td class="py-1 pr-3 text-slate-500">${cell(liveVal)}</td>
+        <td class="py-1 font-medium">${cell(draftVal)}</td></tr>`;
     };
     const perkTitles = (list: Array<Record<string, any>>) => list.map((p) => p.title).join(' · ');
-    const heading = isBrand
-      ? `Brand · ${esc(live.name ?? d.business_name ?? '')}`
-      : `Location · ${esc(live.code ?? '')} · ${esc(live.name ?? '')}`;
-    const rows = isBrand
-      ? [
+    const pin = (e: Record<string, any>) => (e.latitude != null ? `${e.latitude}, ${e.longitude}` : null);
+    const table = (rows: string[]) => `
+      <table class="mt-2 w-full text-sm">
+        <thead><tr class="text-left text-xs uppercase tracking-wide text-slate-400">
+          <th class="pr-3"></th><th class="pr-3 font-medium">Live</th><th class="font-medium">Draft</th></tr></thead>
+        <tbody>${rows.join('')}</tbody>
+      </table>`;
+
+    const brandBlock = d.brand_touched
+      ? table([
           row('Name', live.name, d.business_name),
           row('Website', live.website_url, d.website_url),
           row('Perks (every location)', perkTitles(entry.live_perks ?? []), perkTitles(perks)),
-        ]
-      : [
-          row('Label', live.partner_label, d.label),
-          row('Address', live.partner_address, d.address),
-          row('Pin', '', d.latitude != null ? `${d.latitude}, ${d.longitude}` : '(unchanged)'),
-          row('Perks (this location)', perkTitles(entry.live_perks ?? []), perkTitles(perks)),
-        ];
+        ])
+      : '<p class="mt-2 text-sm text-slate-500">Brand fields unchanged</p>';
+
+    const locations = (entry.locations ?? []) as Array<Record<string, any>>;
+    const locationBlocks = locations.map((loc) => {
+      const e = (loc.draft ?? {}) as Record<string, any>;
+      const lv = (loc.live ?? {}) as Record<string, any>;
+      if (loc.kind === 'edit') {
+        return `<div class="mt-3 rounded-md border border-slate-200 p-3">
+          <p class="text-sm font-semibold">Edit · <span class="font-mono">${esc(lv.code ?? '')}</span></p>
+          ${table([
+            row('Label', lv.partner_label, e.label),
+            row('Address', lv.partner_address, e.address),
+            row('Pin', lv.partner_location ? 'set' : '', pin(e) ?? 'kept'),
+            row('Perks (this location)', perkTitles(loc.live_perks ?? []), perkTitles(e.perks ?? [])),
+          ])}
+        </div>`;
+      }
+      const newRow = (label: string, v: unknown) => `<tr>
+        <td class="py-1 pr-3 text-xs uppercase tracking-wide text-slate-500">${label}</td>
+        <td class="py-1 font-medium">${cell(v)}</td></tr>`;
+      return `<div class="mt-3 rounded-md border border-emerald-200 bg-emerald-50/40 p-3">
+        <p class="text-sm font-semibold">New venue</p>
+        <table class="mt-2 w-full text-sm"><tbody>
+          ${newRow('Label', e.label)}
+          ${newRow('Address', e.address)}
+          ${newRow('Pin', pin(e))}
+          ${newRow('Perks (this location)', perkTitles(e.perks ?? []))}
+        </tbody></table>
+      </div>`;
+    });
+    const locationsBlock = locations.length > 0
+      ? `<h3 class="mt-4 text-xs uppercase tracking-wide text-slate-500">Locations (${locations.length})</h3>${locationBlocks.join('')}`
+      : '<p class="mt-3 text-sm text-slate-500">No location changes</p>';
+
     card.innerHTML = `
       <div class="flex items-start justify-between gap-4">
         <div>
-          <p class="font-semibold">${heading}</p>
+          <p class="font-semibold">Brand · ${esc(live.name ?? d.business_name ?? '')}</p>
           <p class="text-xs text-slate-500">${esc(entry.account?.contact_name ?? '')} · ${esc(entry.account?.contact_email ?? '')} · submitted ${new Date(d.updated_at).toLocaleString()}</p>
         </div>
         ${entry.logo_url ? `<img src="${esc(entry.logo_url)}" alt="" class="h-14 w-14 rounded-full border border-slate-200 object-cover" />` : ''}
       </div>
-      <table class="mt-3 w-full text-sm">
-        <thead><tr class="text-left text-xs uppercase tracking-wide text-slate-400">
-          <th class="pr-3"></th><th class="pr-3 font-medium">Live</th><th class="font-medium">Draft</th></tr></thead>
-        <tbody>${rows.join('')}</tbody>
-      </table>
+      ${brandBlock}
+      ${locationsBlock}
       <div class="mt-4 flex flex-wrap items-center gap-2">
         <input data-note class="w-64 rounded-md border border-slate-300 px-3 py-1.5 text-sm" placeholder="Note to the partner (required to request changes)" />
         <button data-approve class="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-emerald-500">Approve</button>
@@ -150,9 +180,14 @@ import Portal from '../layouts/Portal.astro';
       const res = await callFnJson<Record<string, any>>('admin_approve_partner_draft', {
         draft_id: d.id,
         note: note.value || undefined,
-      }).catch((err) => ({ status: String(err) }));
+      }).catch((err): Record<string, any> => ({ status: String(err) }));
       if (res.status === 'ok') {
-        toast('Approved and live.');
+        const created = (res.created_locations ?? []) as Array<Record<string, any>>;
+        toast(
+          created.length > 0
+            ? `Approved and live. ${created.length} new venue${created.length === 1 ? '' : 's'}: ${created.map((c) => c.code).join(', ')}.`
+            : 'Approved and live.',
+        );
         card.remove();
       } else {
         toast(`Approve failed (${res.status ?? JSON.stringify(res)}).`);

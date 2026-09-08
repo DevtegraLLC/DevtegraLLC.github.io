@@ -88,9 +88,9 @@ import Portal from '../layouts/Portal.astro';
   <section id="brand-locations" hidden class="mt-10">
     <h2 class="text-sm font-semibold">Locations on this card</h2>
     <p class="mt-1 text-xs text-slate-500">
-      Players see the card near any of these. Each has its own address, map pin, members, and lobby screen;
-      manage them under <a class="underline" href="/listing">Locations</a>. Adding a venue is done by the
-      FitCreature team.
+      Players see the card near any of these. Each has its own address, map pin, members, and lobby screen.
+      You add and edit venues yourself under <a class="underline" href="/listing">Locations</a>; every
+      change there rides along in the same submission as this page.
     </p>
     <ul id="brand-location-list" class="mt-3 space-y-2 text-sm"></ul>
   </section>
@@ -190,7 +190,7 @@ import Portal from '../layouts/Portal.astro';
       const bits = [String(l.code)];
       if (!l.has_location) bits.push('no map pin yet');
       if (!l.held) bits.push('managed by another login');
-      const perks = Number(l.perk_count ?? 0);
+      const perks = Array.isArray(l.perks) ? l.perks.length : 0;
       bits.push(`${perks} location perk${perks === 1 ? '' : 's'}`);
       meta.textContent = bits.join(' · ');
       li.appendChild(name);
@@ -239,7 +239,15 @@ import Portal from '../layouts/Portal.astro';
     } else if (draft?.status === 'changes_requested') {
       banner('warn', `Changes requested: ${draft.review_note ?? 'see the note from the team.'} Edit below and resubmit.`);
     } else if (draft) {
-      banner('info', "You have a draft in progress. Submit it when it's ready.");
+      // One draft per brand (Decision 6.138): location edits made under
+      // Locations ride along in the same submission.
+      const pending = Array.isArray(draft.locations) ? draft.locations.length : 0;
+      banner(
+        'info',
+        pending > 0
+          ? `You have a draft in progress; ${pending} location change${pending === 1 ? '' : 's'} from the Locations page ride along in it. Submit it when it's ready.`
+          : "You have a draft in progress. Submit it when it's ready.",
+      );
     } else if (live.listing_published === false) {
       banner('warn', 'Your card is not shown in the app right now. Reach out to the FitCreature team if that is unexpected.');
     }
@@ -325,6 +333,8 @@ import Portal from '../layouts/Portal.astro';
       el<HTMLButtonElement>('btn-submit').disabled = true;
     } else if (res.status === 'agreements_required') {
       banner('warn', 'Please accept the current agreements on the Overview page first.');
+    } else if (res.status === 'location_required') {
+      banner('warn', 'A location in this draft still needs its map pin. Add it under Locations, then submit.');
     } else if (res.status === 'invalid') {
       showErrors(res.errors ?? []);
     } else {

@@ -73,21 +73,23 @@ import Portal from '../layouts/Portal.astro';
   };
 
   async function refresh(): Promise<void> {
-    const listing = await rpc<Record<string, any>>('get_my_partner_listing');
+    // The brand envelope carries the account state, the live card, every
+    // location, and the ONE draft per brand (Decision 6.138).
+    const brand = await rpc<Record<string, any>>('get_my_partner_brand');
     show('dash-loading', false);
-    if (listing.status === 'not_a_partner') {
+    if (brand.status === 'not_a_partner') {
       const err = el('dash-error');
       err.innerHTML = 'This account isn\'t a partner account. Running the program? The admin area is at <a class="underline" href="/admin">/admin</a>.';
       err.hidden = false;
       return;
     }
-    if (listing.status !== 'ok') {
+    if (brand.status !== 'ok') {
       const err = el('dash-error');
-      err.textContent = `Could not load your account (${listing.status}).`;
+      err.textContent = `Could not load your account (${brand.status}).`;
       err.hidden = false;
       return;
     }
-    show('dash-suspended', listing.account_status === 'suspended');
+    show('dash-suspended', brand.account_status === 'suspended');
 
     const state = await rpc<Record<string, any>>('get_partner_agreement_state');
     const kinds = (state.kinds ?? []) as AgreementKind[];
@@ -147,20 +149,17 @@ import Portal from '../layouts/Portal.astro';
         : 'Live';
 
     // The brand card (name, logo, brand-wide perks; Decision 6.137).
-    const brand = await rpc<Record<string, any>>('get_my_partner_brand');
-    if (brand.status === 'ok') {
-      const liveBrand = brand.live as Record<string, any> | null;
-      const published = liveBrand?.listing_published === false ? ' Not shown in the app yet.' : '';
-      el('card-brand').textContent = `${liveBrand?.name ?? 'Your business'}: ${draftStatus(brand.draft ?? null)}.${published}`;
-    }
+    const liveBrand = brand.live as Record<string, any> | null;
+    const draft = (brand.draft ?? null) as Record<string, any> | null;
+    const published = liveBrand?.listing_published === false ? ' Not shown in the app yet.' : '';
+    el('card-brand').textContent = `${liveBrand?.name ?? 'Your business'}: ${draftStatus(draft)}.${published}`;
 
-    // The locations card: the primary location's status + how many venues.
-    const live = listing.live as Record<string, any> | null;
-    const brandInfo = (listing.brand ?? {}) as Record<string, any>;
-    const count = Number(brandInfo.location_count ?? 1);
-    const primary = live?.label ?? live?.code ?? 'Primary location';
-    el('card-listing').textContent =
-      `${count} location${count === 1 ? '' : 's'}. ${primary}: ${draftStatus(listing.draft ?? null)}.`;
+    // The locations card: how many venues + the shared draft's state, with
+    // the location changes riding in it.
+    const count = Array.isArray(liveBrand?.locations) ? liveBrand.locations.length : 0;
+    const pendingLocs = Array.isArray(draft?.locations) ? draft.locations.length : 0;
+    const locNote = pendingLocs > 0 ? ` ${pendingLocs} location change${pendingLocs === 1 ? '' : 's'} in the draft.` : '';
+    el('card-listing').textContent = `${count} location${count === 1 ? '' : 's'}. ${draftStatus(draft)}.${locNote}`;
 
     // Member board summary across every location this login holds (F92).
     const locs = await loadLocations();

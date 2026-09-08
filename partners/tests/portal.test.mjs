@@ -106,6 +106,15 @@ for (const s of ['alieo', 'brutoh', 'chi', 'karmuth', 'wolfie']) {
   ok(fs.existsSync(`dist/assets/brand/creatures/fc_creature_${s}_front.png`), `creature still present: ${s}`);
 }
 
+// F92 step 4: the F91 pages carry the location selector (hidden for a
+// single-location login) and the print layouts accept the location on
+// their URL, so a multi-location partner acts on the venue they picked.
+for (const page of ['listing', 'report', 'print-pack']) {
+  ok(fs.readFileSync(`dist/${page}/index.html`, 'utf8').includes('id="loc-select"'), `location selector on ${page}`);
+}
+ok(all.includes('p_code_id'), 'per-location RPC argument wired');
+ok(all.includes('code_id='), 'per-location code rides the print / upload URLs');
+
 // The report page must carry the not-counted install framing (annex §9.5:
 // never present an Android-only number as a total, never estimate).
 ok(all.includes('cannot be counted') || all.includes('Not counted'), 'installs framed as not counted');

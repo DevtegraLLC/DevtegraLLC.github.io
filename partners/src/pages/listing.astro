@@ -8,6 +8,11 @@ import Portal from '../layouts/Portal.astro';
     Changes here go to the FitCreature team for review before they appear in the app.
   </p>
 
+  <div id="loc-wrap" hidden class="mt-4">
+    <label for="loc-select" class="block text-xs font-medium text-slate-600">Location</label>
+    <select id="loc-select" class="mt-1 rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm"></select>
+  </div>
+
   <p id="listing-loading" class="mt-4 text-sm text-slate-500">Loading…</p>
 
   <div id="status-banner" hidden class="mt-4 rounded-lg border p-4 text-sm"></div>
@@ -99,7 +104,17 @@ import Portal from '../layouts/Portal.astro';
 </Portal>
 
 <script>
-  import { requireSession, rpc, el, show, toast, callFn } from '../lib/portal';
+  import {
+    requireSession,
+    rpc,
+    el,
+    show,
+    toast,
+    initLocationSelector,
+    codeArg,
+    codeQuery,
+    type PartnerLocation,
+  } from '../lib/portal';
   import { authHeaders, functionsUrl } from '../lib/supabase';
 
   interface Perk {
@@ -110,13 +125,27 @@ import Portal from '../layouts/Portal.astro';
 
   let limits: Record<string, number> = {};
   let inReview = false;
+  // The selected location (F92); null = the login's primary, sent as no code.
+  let active: PartnerLocation | null = null;
 
   function counter(spanId: string, input: HTMLInputElement, key: string): void {
     const update = () => {
       el(spanId).textContent = `${input.value.length}/${limits[key] ?? '…'} characters`;
     };
-    input.addEventListener('input', update);
+    input.oninput = update;
     update();
+  }
+
+  // Everything a location switch must not carry over from the last one.
+  function resetForm(): void {
+    show('status-banner', false);
+    show('form-errors', false);
+    show('listing-form', false);
+    el<HTMLInputElement>('f-logo').value = '';
+    el<HTMLImageElement>('logo-preview').hidden = true;
+    el<HTMLImageElement>('logo-preview').removeAttribute('src');
+    el('logo-placeholder').hidden = false;
+    show('logo-note', false);
   }
 
   function perkRow(perk: Perk = { title: '', description: '', discount_code: '' }): HTMLElement {
@@ -175,7 +204,9 @@ import Portal from '../layouts/Portal.astro';
   }
 
   async function load(): Promise<void> {
-    const listing = await rpc<Record<string, any>>('get_my_partner_listing');
+    resetForm();
+    show('listing-loading', true);
+    const listing = await rpc<Record<string, any>>('get_my_partner_listing', codeArg(active));
     show('listing-loading', false);
     if (listing.status !== 'ok') {
       banner('warn', `Could not load your listing (${listing.status}).`);
@@ -257,7 +288,7 @@ import Portal from '../layouts/Portal.astro';
     note.textContent = 'Uploading…';
     const form = new FormData();
     form.append('file', file);
-    const res = await fetch(functionsUrl('partner_upload_logo'), {
+    const res = await fetch(functionsUrl('partner_upload_logo') + codeQuery(active), {
       method: 'POST',
       headers: await authHeaders(),
       body: form,
@@ -276,7 +307,7 @@ import Portal from '../layouts/Portal.astro';
   el<HTMLFormElement>('listing-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     show('form-errors', false);
-    const res = await rpc<Record<string, any>>('save_partner_draft', { p: fields() });
+    const res = await rpc<Record<string, any>>('save_partner_draft', { p: fields(), ...codeArg(active) });
     if (res.status === 'invalid') {
       showErrors(res.errors ?? []);
       return;
@@ -291,7 +322,7 @@ import Portal from '../layouts/Portal.astro';
 
   el('btn-submit').addEventListener('click', async () => {
     show('form-errors', false);
-    const saved = await rpc<Record<string, any>>('save_partner_draft', { p: fields() });
+    const saved = await rpc<Record<string, any>>('save_partner_draft', { p: fields(), ...codeArg(active) });
     if (saved.status === 'invalid') {
       showErrors(saved.errors ?? []);
       return;
@@ -300,7 +331,7 @@ import Portal from '../layouts/Portal.astro';
       banner('info', 'Your changes are already with the team.');
       return;
     }
-    const res = await rpc<Record<string, any>>('submit_partner_draft');
+    const res = await rpc<Record<string, any>>('submit_partner_draft', codeArg(active));
     if (res.status === 'ok') {
       banner('good', 'Submitted. The FitCreature team will review it shortly.');
       el<HTMLButtonElement>('btn-save').disabled = true;
@@ -316,7 +347,15 @@ import Portal from '../layouts/Portal.astro';
     }
   });
 
-  void requireSession().then(load).catch((err) => {
+  async function init(): Promise<void> {
+    active = await initLocationSelector('loc-select', 'loc-wrap', (l) => {
+      active = l;
+      void load().catch((err) => banner('warn', String(err)));
+    });
+    await load();
+  }
+
+  void requireSession().then(init).catch((err) => {
     if (!String(err).includes('redirecting')) {
       show('listing-loading', false);
       banner('warn', String(err));

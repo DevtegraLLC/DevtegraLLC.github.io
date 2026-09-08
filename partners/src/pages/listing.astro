@@ -2,16 +2,19 @@
 import Portal from '../layouts/Portal.astro';
 ---
 
-<Portal title="Your listing">
-  <h1 class="text-2xl font-bold tracking-tight">Your listing</h1>
+<Portal title="Your locations">
+  <h1 class="text-2xl font-bold tracking-tight">Your locations</h1>
   <p class="mt-2 text-sm text-slate-600">
-    Changes here go to the FitCreature team for review before they appear in the app.
+    Each venue has its own address, map pin, and location-only perks. Your name, website, logo, and the
+    perks every venue honors are set once under <a class="underline" href="/brand">Brand</a>. Changes
+    here go to the FitCreature team for review before they appear in the app.
   </p>
 
   <div id="loc-wrap" hidden class="mt-4">
     <label for="loc-select" class="block text-xs font-medium text-slate-600">Location</label>
     <select id="loc-select" class="mt-1 rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm"></select>
   </div>
+  <p id="loc-brand" class="mt-3 text-sm font-medium" hidden></p>
 
   <p id="listing-loading" class="mt-4 text-sm text-slate-500">Loading…</p>
 
@@ -19,14 +22,9 @@ import Portal from '../layouts/Portal.astro';
 
   <form id="listing-form" hidden class="mt-6 space-y-6">
     <div>
-      <label for="f-name" class="block text-sm font-medium">Business name</label>
-      <input id="f-name" type="text" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
-      <p class="mt-1 text-xs text-slate-500"><span id="c-name"></span> · plain text, no emoji or links · around 4-6 words fits best</p>
-    </div>
-    <div>
-      <label for="f-url" class="block text-sm font-medium">Website</label>
-      <input id="f-url" type="url" placeholder="https://…" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
-      <p class="mt-1 text-xs text-slate-500"><span id="c-url"></span> · https:// links only</p>
+      <label for="f-label" class="block text-sm font-medium">Location name</label>
+      <input id="f-label" type="text" placeholder="Downtown, North, Round Rock…" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
+      <p class="mt-1 text-xs text-slate-500"><span id="c-label"></span> · how this venue is told apart from your others in the app · leave empty for a single location</p>
     </div>
     <div>
       <label for="f-address" class="block text-sm font-medium">Address</label>
@@ -43,48 +41,22 @@ import Portal from '../layouts/Portal.astro';
         <input id="f-lng" type="text" inputmode="decimal" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
       </div>
       <p class="col-span-2 -mt-2 text-xs text-slate-500">
-        Your business location (both together, or leave both empty to keep the current one).
+        This venue's map pin (both together, or leave both empty to keep the current one). The app
+        decides which players see your card from the pin, so each location needs one.
       </p>
     </div>
 
     <div>
-      <h2 class="text-sm font-semibold">Logo</h2>
-      <div class="mt-2 flex items-center gap-4">
-        <button type="button" id="logo-circle" aria-label="Upload a logo"
-          class="group relative h-20 w-20 shrink-0 overflow-hidden rounded-full border-2 border-dashed border-slate-300 bg-slate-100 hover:border-indigo-400">
-          <img id="logo-preview" alt="" class="h-full w-full object-cover" hidden />
-          <span id="logo-placeholder" class="absolute inset-0 flex items-center justify-center text-slate-400 group-hover:text-indigo-500">
-            <svg viewBox="0 0 24 24" class="h-8 w-8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M12 16V4m0 0 4 4m-4-4-4 4" /><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" />
-            </svg>
-          </span>
-        </button>
-        <div>
-          <button type="button" id="logo-button"
-            class="inline-flex items-center gap-2 rounded-md bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-700">
-            <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M12 16V4m0 0 4 4m-4-4-4 4" /><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" />
-            </svg>
-            Upload logo
-          </button>
-          <input id="f-logo" type="file" accept="image/png,image/jpeg,image/webp" hidden />
-          <p class="mt-2 text-xs text-slate-500">
-            Square PNG, JPEG, or WebP · 120-1024px · under 1.5 MB · shown cropped to a circle
-            (see the <a class="underline" href="/print-pack#logo-spec">logo spec</a>).
-          </p>
-          <p id="logo-note" class="mt-1 text-xs" hidden></p>
-        </div>
-      </div>
-    </div>
-
-    <div>
       <div class="flex items-center justify-between">
-        <h2 class="text-sm font-semibold">Perks</h2>
+        <h2 class="text-sm font-semibold">Perks at this location only</h2>
         <button type="button" id="perk-add" class="rounded-md border border-slate-300 px-3 py-1 text-xs hover:bg-slate-100">
           Add perk
         </button>
       </div>
-      <p class="mt-1 text-xs text-slate-500">Up to <span id="c-maxperks"></span> in-store offers. Discount codes: letters and numbers only.</p>
+      <p class="mt-1 text-xs text-slate-500">
+        Up to <span id="c-maxperks"></span> offers honored at this venue. Discount codes: letters and numbers only.
+        Offers every venue honors go under <a class="underline" href="/brand">Brand</a>.
+      </p>
       <div id="perk-rows" class="mt-3 space-y-3"></div>
     </div>
 
@@ -112,10 +84,8 @@ import Portal from '../layouts/Portal.astro';
     toast,
     initLocationSelector,
     codeArg,
-    codeQuery,
     type PartnerLocation,
   } from '../lib/portal';
-  import { authHeaders, functionsUrl } from '../lib/supabase';
 
   interface Perk {
     title: string | null;
@@ -141,11 +111,6 @@ import Portal from '../layouts/Portal.astro';
     show('status-banner', false);
     show('form-errors', false);
     show('listing-form', false);
-    el<HTMLInputElement>('f-logo').value = '';
-    el<HTMLImageElement>('logo-preview').hidden = true;
-    el<HTMLImageElement>('logo-preview').removeAttribute('src');
-    el('logo-placeholder').hidden = false;
-    show('logo-note', false);
   }
 
   function perkRow(perk: Perk = { title: '', description: '', discount_code: '' }): HTMLElement {
@@ -173,8 +138,7 @@ import Portal from '../layouts/Portal.astro';
 
   function fields(): Record<string, unknown> {
     return {
-      business_name: el<HTMLInputElement>('f-name').value || null,
-      website_url: el<HTMLInputElement>('f-url').value || null,
+      label: el<HTMLInputElement>('f-label').value || null,
       address: el<HTMLInputElement>('f-address').value || null,
       latitude: el<HTMLInputElement>('f-lat').value || null,
       longitude: el<HTMLInputElement>('f-lng').value || null,
@@ -217,11 +181,15 @@ import Portal from '../layouts/Portal.astro';
 
     const live = (listing.live ?? {}) as Record<string, any>;
     const draft = (listing.draft ?? null) as Record<string, any> | null;
+    const brand = (listing.brand ?? {}) as Record<string, any>;
     const source = draft ?? live;
     inReview = draft?.status === 'submitted';
 
-    el<HTMLInputElement>('f-name').value = String(source.business_name ?? '');
-    el<HTMLInputElement>('f-url').value = String(source.website_url ?? '');
+    const brandLine = el('loc-brand');
+    brandLine.textContent = `${brand.name ?? ''} · ${live.code ?? ''}`;
+    brandLine.hidden = !brand.name;
+
+    el<HTMLInputElement>('f-label').value = String(source.label ?? '');
     el<HTMLInputElement>('f-address').value = String(source.address ?? '');
     el<HTMLInputElement>('f-lat').value = source.latitude != null ? String(source.latitude) : '';
     el<HTMLInputElement>('f-lng').value = source.longitude != null ? String(source.longitude) : '';
@@ -229,20 +197,7 @@ import Portal from '../layouts/Portal.astro';
     rows.innerHTML = '';
     for (const perk of (source.perks ?? []) as Perk[]) rows.appendChild(perkRow(perk));
 
-    const logoPath = draft?.logo_object_path as string | undefined;
-    const liveLogo = live.logo_url as string | undefined;
-    if (liveLogo && !logoPath) {
-      showPreview(liveLogo);
-    }
-    if (logoPath) {
-      const note = el('logo-note');
-      note.textContent = 'A new logo is attached to this draft.';
-      note.className = 'mt-1 text-xs text-emerald-700';
-      note.hidden = false;
-    }
-
-    counter('c-name', el<HTMLInputElement>('f-name'), 'business_name');
-    counter('c-url', el<HTMLInputElement>('f-url'), 'website_url');
+    counter('c-label', el<HTMLInputElement>('f-label'), 'label');
     counter('c-address', el<HTMLInputElement>('f-address'), 'address');
 
     if (inReview) {
@@ -264,44 +219,6 @@ import Portal from '../layouts/Portal.astro';
       return;
     }
     el('perk-rows').appendChild(perkRow());
-  });
-
-  const openPicker = () => el<HTMLInputElement>('f-logo').click();
-  el('logo-button').addEventListener('click', openPicker);
-  el('logo-circle').addEventListener('click', openPicker);
-
-  function showPreview(src: string): void {
-    const img = el<HTMLImageElement>('logo-preview');
-    img.src = src;
-    img.hidden = false;
-    el('logo-placeholder').hidden = true;
-  }
-
-  el<HTMLInputElement>('f-logo').addEventListener('change', async () => {
-    const input = el<HTMLInputElement>('f-logo');
-    const file = input.files?.[0];
-    if (!file) return;
-    showPreview(URL.createObjectURL(file));
-    const note = el('logo-note');
-    note.hidden = false;
-    note.className = 'mt-1 text-xs text-slate-500';
-    note.textContent = 'Uploading…';
-    const form = new FormData();
-    form.append('file', file);
-    const res = await fetch(functionsUrl('partner_upload_logo') + codeQuery(active), {
-      method: 'POST',
-      headers: await authHeaders(),
-      body: form,
-    });
-    const body = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      note.className = 'mt-1 text-xs text-rose-600';
-      note.textContent = `That image didn't pass (${body.error ?? res.status}). Square PNG/JPEG/WebP, 120-1024px.`;
-      input.value = '';
-      return;
-    }
-    note.className = 'mt-1 text-xs text-emerald-700';
-    note.textContent = `Logo attached (${body.width}×${body.height}). It goes live with your next approved submission.`;
   });
 
   el<HTMLFormElement>('listing-form').addEventListener('submit', async (e) => {
@@ -338,8 +255,8 @@ import Portal from '../layouts/Portal.astro';
       el<HTMLButtonElement>('btn-submit').disabled = true;
     } else if (res.status === 'agreements_required') {
       banner('warn', 'Please accept the current agreements on the Overview page first.');
-    } else if (res.status === 'local_requires_location') {
-      banner('warn', 'A local listing needs its business location. Add latitude and longitude above.');
+    } else if (res.status === 'location_required') {
+      banner('warn', 'This location needs its map pin before it can go live. Add latitude and longitude above.');
     } else if (res.status === 'invalid') {
       showErrors(res.errors ?? []);
     } else {

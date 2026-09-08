@@ -24,6 +24,7 @@ const ok = (cond, msg) => {
 const PAGES = [
   'index.html',
   'dashboard/index.html',
+  'brand/index.html',
   'listing/index.html',
   'report/index.html',
   'print-pack/index.html',
@@ -63,6 +64,12 @@ for (const needle of [
   'get_my_partner_listing',
   'save_partner_draft',
   'submit_partner_draft',
+  // Decision 6.137 brand model: brand-level listing + brand-level takedown
+  'get_my_partner_brand',
+  'save_partner_brand_draft',
+  'submit_partner_brand_draft',
+  'set_partner_listing_published',
+  'p_brand_id',
   'get_partner_agreement_state',
   'accept_partner_agreement',
   'partner_download_agreement',
@@ -113,7 +120,14 @@ for (const page of ['listing', 'report', 'print-pack']) {
   ok(fs.readFileSync(`dist/${page}/index.html`, 'utf8').includes('id="loc-select"'), `location selector on ${page}`);
 }
 ok(all.includes('p_code_id'), 'per-location RPC argument wired');
-ok(all.includes('code_id='), 'per-location code rides the print / upload URLs');
+ok(all.includes('code_id='), 'per-location code rides the print URLs');
+// The logo is brand-level (Decision 6.137): the upload never names a location.
+const brandHtml = fs.readFileSync('dist/brand/index.html', 'utf8');
+const brandBundle = [...brandHtml.matchAll(/<script[^>]+src="([^"]+)"/g)]
+  .map((m) => fs.readFileSync(path.join('dist', m[1].replace(/^\//, '')), 'utf8'))
+  .join('\n');
+ok(brandBundle.includes('partner_upload_logo') && !brandBundle.includes('code_id='), 'logo upload is brand-level');
+ok(!fs.readFileSync('dist/listing/index.html', 'utf8').includes('f-logo'), 'location page carries no logo control');
 
 // The report page must carry the not-counted install framing (annex §9.5:
 // never present an Android-only number as a total, never estimate).

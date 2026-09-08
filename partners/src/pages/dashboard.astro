@@ -23,8 +23,12 @@ import Portal from '../layouts/Portal.astro';
   </section>
 
   <section id="dash-main" hidden class="mt-8 grid gap-4 sm:grid-cols-2">
+    <a href="/brand" class="rounded-lg border border-slate-200 bg-white p-5 hover:border-indigo-300">
+      <h2 class="font-semibold">Your brand</h2>
+      <p id="card-brand" class="mt-1 text-sm text-slate-600"></p>
+    </a>
     <a href="/listing" class="rounded-lg border border-slate-200 bg-white p-5 hover:border-indigo-300">
-      <h2 class="font-semibold">Your listing</h2>
+      <h2 class="font-semibold">Your locations</h2>
       <p id="card-listing" class="mt-1 text-sm text-slate-600"></p>
     </a>
     <a href="/members" class="rounded-lg border border-slate-200 bg-white p-5 hover:border-indigo-300">
@@ -135,14 +139,28 @@ import Portal from '../layouts/Portal.astro';
     }
 
     show('dash-main', true);
+    const draftStatus = (draft: Record<string, any> | null): string =>
+      draft
+        ? { draft: 'Draft in progress', submitted: 'Submitted, in review', changes_requested: 'Changes requested' }[
+            String(draft.status)
+          ] ?? String(draft.status)
+        : 'Live';
+
+    // The brand card (name, logo, brand-wide perks; Decision 6.137).
+    const brand = await rpc<Record<string, any>>('get_my_partner_brand');
+    if (brand.status === 'ok') {
+      const liveBrand = brand.live as Record<string, any> | null;
+      const published = liveBrand?.listing_published === false ? ' Not shown in the app yet.' : '';
+      el('card-brand').textContent = `${liveBrand?.name ?? 'Your business'}: ${draftStatus(brand.draft ?? null)}.${published}`;
+    }
+
+    // The locations card: the primary location's status + how many venues.
     const live = listing.live as Record<string, any> | null;
-    const draft = listing.draft as Record<string, any> | null;
-    const status = draft
-      ? { draft: 'Draft in progress', submitted: 'Submitted, in review', changes_requested: 'Changes requested' }[
-          String(draft.status)
-        ] ?? String(draft.status)
-      : 'Live';
-    el('card-listing').textContent = `${live?.business_name ?? 'Your business'}: ${status}.`;
+    const brandInfo = (listing.brand ?? {}) as Record<string, any>;
+    const count = Number(brandInfo.location_count ?? 1);
+    const primary = live?.label ?? live?.code ?? 'Primary location';
+    el('card-listing').textContent =
+      `${count} location${count === 1 ? '' : 's'}. ${primary}: ${draftStatus(listing.draft ?? null)}.`;
 
     // Member board summary across every location this login holds (F92).
     const locs = await loadLocations();

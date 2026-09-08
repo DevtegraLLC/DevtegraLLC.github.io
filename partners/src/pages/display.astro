@@ -161,7 +161,7 @@
   interface Perk { title: string; description: string | null; discount_code: string | null }
   interface Payload {
     ok: boolean;
-    location: { name: string | null; code: string; handle: string | null; logo_url: string | null };
+    location: { name: string | null; label: string | null; code: string; handle: string | null; logo_url: string | null };
     board: { snapshot_date: string | null; member_count: number; rows: Row[] };
     perks: Perk[];
     config: { slides?: SlideKey[]; slide_ms?: Record<string, number>; top_count?: number; refetch_ms?: number };
@@ -205,7 +205,9 @@
   }
 
   function renderChrome(p: Payload): void {
-    $('d-venue').textContent = p.location.name ?? '';
+    // Brand name, plus the location label when the brand has several venues
+    // (Decision 6.137): "Eastside Lift Club · North".
+    $('d-venue').textContent = [p.location.name, p.location.label].filter(Boolean).join(' · ');
     const logo = $('d-logo') as HTMLImageElement;
     if (p.location.logo_url) {
       logo.src = p.location.logo_url;

@@ -1,0 +1,341 @@
+---
+import Portal from '../layouts/Portal.astro';
+---
+
+<Portal title="Your brand">
+  <h1 class="text-2xl font-bold tracking-tight">Your brand</h1>
+  <p class="mt-2 text-sm text-slate-600">
+    Your business as it appears on its one card in the app: name, website, logo, and the perks every
+    location honors. Per-location details (address, map pin, location-only perks) live under
+    <a class="underline" href="/listing">Locations</a>. Changes go to the FitCreature team for review
+    before they appear.
+  </p>
+
+  <p id="brand-loading" class="mt-4 text-sm text-slate-500">Loading…</p>
+
+  <div id="status-banner" hidden class="mt-4 rounded-lg border p-4 text-sm"></div>
+
+  <form id="brand-form" hidden class="mt-6 space-y-6">
+    <div>
+      <label for="f-name" class="block text-sm font-medium">Business name</label>
+      <input id="f-name" type="text" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
+      <p class="mt-1 text-xs text-slate-500"><span id="c-name"></span> · plain text, no emoji or links · around 4-6 words fits best</p>
+    </div>
+    <div>
+      <label for="f-url" class="block text-sm font-medium">Website</label>
+      <input id="f-url" type="url" placeholder="https://…" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
+      <p class="mt-1 text-xs text-slate-500"><span id="c-url"></span> · https:// links only</p>
+    </div>
+
+    <div>
+      <h2 class="text-sm font-semibold">Logo</h2>
+      <div class="mt-2 flex items-center gap-4">
+        <button type="button" id="logo-circle" aria-label="Upload a logo"
+          class="group relative h-20 w-20 shrink-0 overflow-hidden rounded-full border-2 border-dashed border-slate-300 bg-slate-100 hover:border-indigo-400">
+          <img id="logo-preview" alt="" class="h-full w-full object-cover" hidden />
+          <span id="logo-placeholder" class="absolute inset-0 flex items-center justify-center text-slate-400 group-hover:text-indigo-500">
+            <svg viewBox="0 0 24 24" class="h-8 w-8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 16V4m0 0 4 4m-4-4-4 4" /><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" />
+            </svg>
+          </span>
+        </button>
+        <div>
+          <button type="button" id="logo-button"
+            class="inline-flex items-center gap-2 rounded-md bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-700">
+            <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 16V4m0 0 4 4m-4-4-4 4" /><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" />
+            </svg>
+            Upload logo
+          </button>
+          <input id="f-logo" type="file" accept="image/png,image/jpeg,image/webp" hidden />
+          <p class="mt-2 text-xs text-slate-500">
+            Square PNG, JPEG, or WebP · 120-1024px · under 1.5 MB · shown cropped to a circle
+            (see the <a class="underline" href="/print-pack#logo-spec">logo spec</a>). One logo for every location.
+          </p>
+          <p id="logo-note" class="mt-1 text-xs" hidden></p>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="flex items-center justify-between">
+        <h2 class="text-sm font-semibold">Perks at every location</h2>
+        <button type="button" id="perk-add" class="rounded-md border border-slate-300 px-3 py-1 text-xs hover:bg-slate-100">
+          Add perk
+        </button>
+      </div>
+      <p class="mt-1 text-xs text-slate-500">
+        Up to <span id="c-maxperks"></span> offers honored at all of your locations. Discount codes: letters and numbers only.
+        A perk that only one venue offers belongs on that venue's <a class="underline" href="/listing">location page</a>.
+      </p>
+      <div id="perk-rows" class="mt-3 space-y-3"></div>
+    </div>
+
+    <div id="form-errors" hidden class="rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800"></div>
+
+    <div class="flex gap-3">
+      <button type="submit" id="btn-save"
+        class="rounded-md bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700 disabled:opacity-50">
+        Save draft
+      </button>
+      <button type="button" id="btn-submit"
+        class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-50">
+        Submit for review
+      </button>
+    </div>
+  </form>
+
+  <section id="brand-locations" hidden class="mt-10">
+    <h2 class="text-sm font-semibold">Locations on this card</h2>
+    <p class="mt-1 text-xs text-slate-500">
+      Players see the card near any of these. Each has its own address, map pin, members, and lobby screen;
+      manage them under <a class="underline" href="/listing">Locations</a>. Adding a venue is done by the
+      FitCreature team.
+    </p>
+    <ul id="brand-location-list" class="mt-3 space-y-2 text-sm"></ul>
+  </section>
+</Portal>
+
+<script>
+  import { requireSession, rpc, el, show, toast } from '../lib/portal';
+  import { authHeaders, functionsUrl } from '../lib/supabase';
+
+  interface Perk {
+    title: string | null;
+    description: string | null;
+    discount_code: string | null;
+  }
+
+  let limits: Record<string, number> = {};
+  let inReview = false;
+
+  function counter(spanId: string, input: HTMLInputElement, key: string): void {
+    const update = () => {
+      el(spanId).textContent = `${input.value.length}/${limits[key] ?? '…'} characters`;
+    };
+    input.oninput = update;
+    update();
+  }
+
+  function perkRow(perk: Perk = { title: '', description: '', discount_code: '' }): HTMLElement {
+    const row = document.createElement('div');
+    row.className = 'perk-row grid gap-2 rounded-lg border border-slate-200 bg-white p-3 sm:grid-cols-[1fr_1fr_8rem_auto]';
+    row.innerHTML = `
+      <input data-k="title" placeholder="Perk title" class="rounded-md border border-slate-300 px-2 py-1.5 text-sm" />
+      <input data-k="description" placeholder="Where and how to use it (optional)" class="rounded-md border border-slate-300 px-2 py-1.5 text-sm" />
+      <input data-k="discount_code" placeholder="CODE" class="rounded-md border border-slate-300 px-2 py-1.5 text-sm uppercase" />
+      <button type="button" class="perk-remove text-sm text-slate-400 hover:text-rose-600">Remove</button>`;
+    (row.querySelector('[data-k="title"]') as HTMLInputElement).value = perk.title ?? '';
+    (row.querySelector('[data-k="description"]') as HTMLInputElement).value = perk.description ?? '';
+    (row.querySelector('[data-k="discount_code"]') as HTMLInputElement).value = perk.discount_code ?? '';
+    row.querySelector('.perk-remove')!.addEventListener('click', () => row.remove());
+    return row;
+  }
+
+  function readPerks(): Perk[] {
+    return [...document.querySelectorAll('.perk-row')].map((row) => ({
+      title: (row.querySelector('[data-k="title"]') as HTMLInputElement).value || null,
+      description: (row.querySelector('[data-k="description"]') as HTMLInputElement).value || null,
+      discount_code: (row.querySelector('[data-k="discount_code"]') as HTMLInputElement).value || null,
+    }));
+  }
+
+  function fields(): Record<string, unknown> {
+    return {
+      business_name: el<HTMLInputElement>('f-name').value || null,
+      website_url: el<HTMLInputElement>('f-url').value || null,
+      perks: readPerks(),
+    };
+  }
+
+  function banner(kind: 'info' | 'warn' | 'good', text: string): void {
+    const node = el('status-banner');
+    node.hidden = false;
+    node.className = `mt-4 rounded-lg border p-4 text-sm ${
+      kind === 'warn'
+        ? 'border-amber-300 bg-amber-50 text-amber-900'
+        : kind === 'good'
+          ? 'border-emerald-300 bg-emerald-50 text-emerald-900'
+          : 'border-slate-200 bg-white text-slate-700'
+    }`;
+    node.textContent = text;
+  }
+
+  function showErrors(errors: Array<{ field: string; code: string }>): void {
+    const node = el('form-errors');
+    node.hidden = false;
+    node.innerHTML = `<p class="font-semibold">A few things to adjust:</p><ul class="mt-2 list-disc pl-5">${errors
+      .map((e) => `<li>${e.field.replaceAll('_', ' ')}: ${e.code.replaceAll('_', ' ')}</li>`)
+      .join('')}</ul>`;
+  }
+
+  function showPreview(src: string): void {
+    const img = el<HTMLImageElement>('logo-preview');
+    img.src = src;
+    img.hidden = false;
+    el('logo-placeholder').hidden = true;
+  }
+
+  function renderLocations(locations: Array<Record<string, any>>): void {
+    const list = el('brand-location-list');
+    list.innerHTML = '';
+    for (const l of locations) {
+      const li = document.createElement('li');
+      li.className = 'flex flex-wrap items-center justify-between gap-2 rounded-md border border-slate-200 bg-white px-4 py-2.5';
+      const name = document.createElement('span');
+      name.className = 'font-medium';
+      name.textContent = l.label ?? l.address ?? 'Unnamed location';
+      const meta = document.createElement('span');
+      meta.className = 'text-xs text-slate-500';
+      const bits = [String(l.code)];
+      if (!l.has_location) bits.push('no map pin yet');
+      if (!l.held) bits.push('managed by another login');
+      const perks = Number(l.perk_count ?? 0);
+      bits.push(`${perks} location perk${perks === 1 ? '' : 's'}`);
+      meta.textContent = bits.join(' · ');
+      li.appendChild(name);
+      li.appendChild(meta);
+      list.appendChild(li);
+    }
+    show('brand-locations', locations.length > 0);
+  }
+
+  async function load(): Promise<void> {
+    show('brand-loading', true);
+    const brand = await rpc<Record<string, any>>('get_my_partner_brand');
+    show('brand-loading', false);
+    if (brand.status !== 'ok') {
+      banner('warn', `Could not load your brand (${brand.status}).`);
+      return;
+    }
+    limits = brand.field_limits ?? {};
+    el('c-maxperks').textContent = String(limits.max_perks ?? 5);
+
+    const live = (brand.live ?? {}) as Record<string, any>;
+    const draft = (brand.draft ?? null) as Record<string, any> | null;
+    inReview = draft?.status === 'submitted';
+
+    el<HTMLInputElement>('f-name').value = String(draft?.business_name ?? live.name ?? '');
+    el<HTMLInputElement>('f-url').value = String(draft?.website_url ?? live.website_url ?? '');
+    const rows = el('perk-rows');
+    rows.innerHTML = '';
+    for (const perk of ((draft?.perks ?? live.perks ?? []) as Perk[])) rows.appendChild(perkRow(perk));
+
+    const logoPath = draft?.logo_object_path as string | undefined;
+    const liveLogo = live.logo_url as string | undefined;
+    if (liveLogo && !logoPath) showPreview(liveLogo);
+    if (logoPath) {
+      const note = el('logo-note');
+      note.textContent = 'A new logo is attached to this draft.';
+      note.className = 'mt-1 text-xs text-emerald-700';
+      note.hidden = false;
+    }
+
+    counter('c-name', el<HTMLInputElement>('f-name'), 'business_name');
+    counter('c-url', el<HTMLInputElement>('f-url'), 'website_url');
+
+    if (inReview) {
+      banner('info', 'Your changes are with the FitCreature team. Editing reopens once the review finishes.');
+    } else if (draft?.status === 'changes_requested') {
+      banner('warn', `Changes requested: ${draft.review_note ?? 'see the note from the team.'} Edit below and resubmit.`);
+    } else if (draft) {
+      banner('info', "You have a draft in progress. Submit it when it's ready.");
+    } else if (live.listing_published === false) {
+      banner('warn', 'Your card is not shown in the app right now. Reach out to the FitCreature team if that is unexpected.');
+    }
+
+    show('brand-form', true);
+    el<HTMLButtonElement>('btn-save').disabled = inReview;
+    el<HTMLButtonElement>('btn-submit').disabled = inReview;
+
+    renderLocations((live.locations ?? []) as Array<Record<string, any>>);
+  }
+
+  el('perk-add').addEventListener('click', () => {
+    if (document.querySelectorAll('.perk-row').length >= (limits.max_perks ?? 5)) {
+      toast(`Up to ${limits.max_perks ?? 5} perks.`);
+      return;
+    }
+    el('perk-rows').appendChild(perkRow());
+  });
+
+  const openPicker = () => el<HTMLInputElement>('f-logo').click();
+  el('logo-button').addEventListener('click', openPicker);
+  el('logo-circle').addEventListener('click', openPicker);
+
+  el<HTMLInputElement>('f-logo').addEventListener('change', async () => {
+    const input = el<HTMLInputElement>('f-logo');
+    const file = input.files?.[0];
+    if (!file) return;
+    showPreview(URL.createObjectURL(file));
+    const note = el('logo-note');
+    note.hidden = false;
+    note.className = 'mt-1 text-xs text-slate-500';
+    note.textContent = 'Uploading…';
+    const form = new FormData();
+    form.append('file', file);
+    // The logo is brand-level: no location rides the URL.
+    const res = await fetch(functionsUrl('partner_upload_logo'), {
+      method: 'POST',
+      headers: await authHeaders(),
+      body: form,
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      note.className = 'mt-1 text-xs text-rose-600';
+      note.textContent = `That image didn't pass (${body.error ?? res.status}). Square PNG/JPEG/WebP, 120-1024px.`;
+      input.value = '';
+      return;
+    }
+    note.className = 'mt-1 text-xs text-emerald-700';
+    note.textContent = `Logo attached (${body.width}×${body.height}). It goes live with your next approved submission.`;
+  });
+
+  el<HTMLFormElement>('brand-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    show('form-errors', false);
+    const res = await rpc<Record<string, any>>('save_partner_brand_draft', { p: fields() });
+    if (res.status === 'invalid') {
+      showErrors(res.errors ?? []);
+      return;
+    }
+    if (res.status !== 'ok') {
+      toast(`Could not save (${res.status}).`);
+      return;
+    }
+    toast('Draft saved.');
+    banner('info', "You have a draft in progress. Submit it when it's ready.");
+  });
+
+  el('btn-submit').addEventListener('click', async () => {
+    show('form-errors', false);
+    const saved = await rpc<Record<string, any>>('save_partner_brand_draft', { p: fields() });
+    if (saved.status === 'invalid') {
+      showErrors(saved.errors ?? []);
+      return;
+    }
+    if (saved.status === 'in_review') {
+      banner('info', 'Your changes are already with the team.');
+      return;
+    }
+    const res = await rpc<Record<string, any>>('submit_partner_brand_draft');
+    if (res.status === 'ok') {
+      banner('good', 'Submitted. The FitCreature team will review it shortly.');
+      el<HTMLButtonElement>('btn-save').disabled = true;
+      el<HTMLButtonElement>('btn-submit').disabled = true;
+    } else if (res.status === 'agreements_required') {
+      banner('warn', 'Please accept the current agreements on the Overview page first.');
+    } else if (res.status === 'invalid') {
+      showErrors(res.errors ?? []);
+    } else {
+      toast(`Could not submit (${res.status}).`);
+    }
+  });
+
+  void requireSession().then(load).catch((err) => {
+    if (!String(err).includes('redirecting')) {
+      show('brand-loading', false);
+      banner('warn', String(err));
+    }
+  });
+</script>

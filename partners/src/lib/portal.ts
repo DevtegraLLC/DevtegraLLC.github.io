@@ -106,16 +106,18 @@ export function fmtDay(value: unknown): string {
 }
 
 // ---------------------------------------------------------------------------
-// Locations (F92). One partner login may hold several referral codes, one
-// per venue; the per-location pages (Members, Lobby screen) act on the one
-// the partner has selected. The choice persists per browser so a
-// multi-location manager is not re-asked on every page.
+// Locations (F92, Decision 6.137). A partner login belongs to one BRAND and
+// may hold several of its locations (one referral code per venue); the
+// per-location pages (Locations, Members, Lobby screen, Report, Print pack)
+// act on the one the partner has selected. The choice persists per browser
+// so a multi-location manager is not re-asked on every page.
 // ---------------------------------------------------------------------------
 
 export interface PartnerLocation {
   code_id: string;
   code: string;
-  partner_name: string | null;
+  brand_name: string | null;
+  label: string | null;
   address: string | null;
   is_primary: boolean;
   listing_published: boolean;
@@ -128,6 +130,8 @@ export interface PartnerLocation {
 
 export interface LocationsState {
   status: string;
+  brand_id?: string;
+  brand_name?: string;
   agreements_current?: boolean;
   locations?: PartnerLocation[];
 }
@@ -158,8 +162,10 @@ export function rememberLocation(codeId: string): void {
   }
 }
 
+/** "Downtown (EASTLIFT)": the location's label, else its address, else just the code. */
 export function locationLabel(l: PartnerLocation): string {
-  return `${l.partner_name ?? 'Unnamed location'} (${l.code})`;
+  const name = l.label ?? l.address;
+  return name ? `${name} (${l.code})` : l.code;
 }
 
 /**
@@ -194,13 +200,11 @@ export function mountLocationSelector(
 }
 
 /**
- * Location plumbing for the F91 pages (listing, report, print pack) that
- * predate the selector. Loads the login's locations and mounts the selector;
- * returns the active location, or null when locations cannot be loaded (an
- * older backend, a non-partner session). Null means "send no code": the
- * server then acts on the login's primary location exactly as before, so a
- * portal deployed ahead of its backend still works for every single-location
- * partner.
+ * Location plumbing for the per-location pages (locations, report, print
+ * pack). Loads the login's locations and mounts the selector; returns the
+ * active location, or null when locations cannot be loaded (a non-partner
+ * session). Null means "send no code": the server then acts on the login's
+ * primary location.
  */
 export async function initLocationSelector(
   selectId: string,

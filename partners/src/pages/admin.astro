@@ -89,37 +89,56 @@ import Portal from '../layouts/Portal.astro';
 <script>
   import { requireSession, rpc, callFn, callFnJson, el, show, toast, fmtDate } from '../lib/portal';
 
+  // Partner-typed text lands in innerHTML below, so it is escaped first.
+  const esc = (v: unknown): string =>
+    String(v ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
+
+  // One queue entry is either a BRAND draft (name / website / logo / perks
+  // every location honors) or a LOCATION draft (label / address / pin / that
+  // venue's perks); Decision 6.137.
   function draftCard(entry: Record<string, any>): HTMLElement {
     const d = entry.draft;
     const live = entry.live ?? {};
+    const isBrand = entry.kind === 'brand';
     const card = document.createElement('div');
     card.className = 'rounded-lg border border-slate-200 bg-white p-5';
     const perks = (d.perks as Array<Record<string, any>>) ?? [];
     const row = (label: string, liveVal: unknown, draftVal: unknown) => {
       const changed = String(liveVal ?? '') !== String(draftVal ?? '');
+      const dot = '<span class="text-slate-300">·</span>';
       return `<tr class="${changed ? 'bg-amber-50' : ''}">
         <td class="py-1 pr-3 text-xs uppercase tracking-wide text-slate-500">${label}</td>
-        <td class="py-1 pr-3 text-slate-500">${liveVal ?? '<span class="text-slate-300">·</span>'}</td>
-        <td class="py-1 font-medium">${draftVal ?? '<span class="text-slate-300">·</span>'}</td></tr>`;
+        <td class="py-1 pr-3 text-slate-500">${liveVal == null || liveVal === '' ? dot : esc(liveVal)}</td>
+        <td class="py-1 font-medium">${draftVal == null || draftVal === '' ? dot : esc(draftVal)}</td></tr>`;
     };
+    const perkTitles = (list: Array<Record<string, any>>) => list.map((p) => p.title).join(' · ');
+    const heading = isBrand
+      ? `Brand · ${esc(live.name ?? d.business_name ?? '')}`
+      : `Location · ${esc(live.code ?? '')} · ${esc(live.name ?? '')}`;
+    const rows = isBrand
+      ? [
+          row('Name', live.name, d.business_name),
+          row('Website', live.website_url, d.website_url),
+          row('Perks (every location)', perkTitles(entry.live_perks ?? []), perkTitles(perks)),
+        ]
+      : [
+          row('Label', live.partner_label, d.label),
+          row('Address', live.partner_address, d.address),
+          row('Pin', '', d.latitude != null ? `${d.latitude}, ${d.longitude}` : '(unchanged)'),
+          row('Perks (this location)', perkTitles(entry.live_perks ?? []), perkTitles(perks)),
+        ];
     card.innerHTML = `
       <div class="flex items-start justify-between gap-4">
         <div>
-          <p class="font-semibold">${live.code ?? ''} · ${entry.account?.contact_name ?? ''}</p>
-          <p class="text-xs text-slate-500">${entry.account?.contact_email ?? ''} · submitted ${new Date(d.updated_at).toLocaleString()}</p>
+          <p class="font-semibold">${heading}</p>
+          <p class="text-xs text-slate-500">${esc(entry.account?.contact_name ?? '')} · ${esc(entry.account?.contact_email ?? '')} · submitted ${new Date(d.updated_at).toLocaleString()}</p>
         </div>
-        ${entry.logo_url ? `<img src="${entry.logo_url}" alt="" class="h-14 w-14 rounded-full border border-slate-200 object-cover" />` : ''}
+        ${entry.logo_url ? `<img src="${esc(entry.logo_url)}" alt="" class="h-14 w-14 rounded-full border border-slate-200 object-cover" />` : ''}
       </div>
       <table class="mt-3 w-full text-sm">
         <thead><tr class="text-left text-xs uppercase tracking-wide text-slate-400">
           <th class="pr-3"></th><th class="pr-3 font-medium">Live</th><th class="font-medium">Draft</th></tr></thead>
-        <tbody>
-          ${row('Name', live.partner_name, d.business_name)}
-          ${row('Website', live.partner_website_url, d.website_url)}
-          ${row('Address', live.partner_address, d.address)}
-          ${row('Location', '', d.latitude != null ? `${d.latitude}, ${d.longitude}` : '(unchanged)')}
-          ${row('Perks', (entry.live_perks ?? []).map((p: any) => p.title).join(' · '), perks.map((p) => p.title).join(' · '))}
-        </tbody>
+        <tbody>${rows.join('')}</tbody>
       </table>
       <div class="mt-4 flex flex-wrap items-center gap-2">
         <input data-note class="w-64 rounded-md border border-slate-300 px-3 py-1.5 text-sm" placeholder="Note to the partner (required to request changes)" />
@@ -243,8 +262,8 @@ import Portal from '../layouts/Portal.astro';
       tr.className = 'border-b border-slate-100';
       const mark = (ok: boolean) => (ok ? '✓' : '·');
       tr.innerHTML = `
-        <td class="py-2 pr-4 font-mono">${p.code ?? ''}</td>
-        <td class="py-2 pr-4">${p.contact_name} <span class="text-xs text-slate-500">${p.contact_email}</span></td>
+        <td class="py-2 pr-4"><span class="font-mono">${esc(p.code ?? '')}</span> <span class="text-xs text-slate-500">${esc(p.brand_name ?? '')}</span></td>
+        <td class="py-2 pr-4">${esc(p.contact_name)} <span class="text-xs text-slate-500">${esc(p.contact_email)}</span></td>
         <td class="py-2 pr-4">${p.status}</td>
         <td class="py-2 pr-4">${mark(p.agreements.terms)}</td>
         <td class="py-2 pr-4">${mark(p.agreements.brand_license)}</td>
@@ -279,13 +298,15 @@ import Portal from '../layouts/Portal.astro';
     for (const u of unpub) {
       const li = document.createElement('li');
       li.className = 'flex items-center justify-between rounded-md border border-slate-200 bg-white px-4 py-2.5';
-      li.innerHTML = `<span class="font-mono">${u.code}</span><span>${u.partner_name ?? ''}</span>`;
+      const name = document.createElement('span');
+      name.textContent = u.name ?? '';
+      li.appendChild(name);
       const btn = document.createElement('button');
       btn.textContent = 'Republish';
       btn.className = 'rounded-md border border-slate-300 px-2 py-1 text-xs hover:bg-slate-100';
       btn.addEventListener('click', async () => {
         const res2 = await rpc<Record<string, any>>('set_partner_listing_published', {
-          p_code_id: u.id,
+          p_brand_id: u.id,
           p_published: true,
         });
         toast(res2.status === 'ok' ? 'Republished.' : `Failed (${res2.status}).`);

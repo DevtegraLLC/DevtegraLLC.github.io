@@ -1,0 +1,288 @@
+---
+import Portal from '../layouts/Portal.astro';
+---
+
+<Portal title="Lobby screen">
+  <h1 class="text-2xl font-bold tracking-tight">Lobby screen</h1>
+  <p class="mt-2 text-sm text-slate-600">
+    A web page for the TV in your lobby. Open the link once in the TV's browser and leave it running: it cycles
+    your member board, the top creatures, a join code, and your current perk, and refreshes itself.
+  </p>
+
+  <div id="loc-wrap" hidden class="mt-4">
+    <label for="loc-select" class="block text-xs font-medium text-slate-600">Location</label>
+    <select id="loc-select" class="mt-1 rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm"></select>
+  </div>
+
+  <p id="s-loading" class="mt-6 text-sm text-slate-500">Loading…</p>
+  <p id="s-error" class="mt-6 text-sm text-rose-600" hidden></p>
+
+  <div id="s-gate" hidden class="mt-6 rounded-lg border border-indigo-200 bg-indigo-50 p-4 text-sm text-indigo-900">
+    Screen links can be issued once the current agreements are accepted. See the
+    <a class="underline" href="/dashboard">Overview</a> page.
+  </div>
+
+  <div id="s-unprovisioned" hidden class="mt-6 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+    This location does not have a board yet. The FitCreature team switches it on; reach out if you would like it.
+  </div>
+
+  <div id="s-body" hidden>
+    <section class="mt-6 rounded-lg border border-slate-200 bg-white p-5">
+      <h2 class="text-sm font-semibold">Screen link</h2>
+
+      <div id="s-nolink">
+        <p class="mt-2 text-sm text-slate-600">No screen link has been issued for this location yet.</p>
+        <button id="s-generate" class="mt-4 rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-50">
+          Generate screen link
+        </button>
+      </div>
+
+      <div id="s-haslink" hidden>
+        <p class="mt-2 text-sm text-slate-600">
+          Anyone with this link can view the screen. It carries no login and never expires on its own; rotate it
+          if it leaks or a TV is retired, and the old link stops working right away.
+        </p>
+        <div class="mt-3 flex flex-wrap items-center gap-2">
+          <input id="s-url" type="text" readonly
+            class="min-w-0 grow rounded-md border border-slate-300 bg-slate-50 px-3 py-2 font-mono text-xs text-slate-800" />
+          <button id="s-copy" class="rounded-md border border-slate-300 px-3 py-2 text-sm hover:bg-slate-100">Copy</button>
+          <a id="s-open" href="#" target="_blank" rel="noopener"
+            class="rounded-md border border-slate-300 px-3 py-2 text-sm hover:bg-slate-100">Open preview</a>
+        </div>
+        <button id="s-rotate" class="mt-4 rounded-md border border-rose-300 px-3 py-1.5 text-sm text-rose-700 hover:bg-rose-50 disabled:opacity-50">
+          Rotate link
+        </button>
+      </div>
+
+      <h3 class="mt-6 text-xs font-semibold uppercase tracking-wide text-slate-500">Setting up the TV</h3>
+      <ol class="mt-2 list-decimal space-y-1 pl-5 text-sm text-slate-600">
+        <li>Open the link in the TV's browser (or a streaming stick, or a laptop plugged into the TV).</li>
+        <li>Use full-screen mode if the browser offers it, and turn off any screen-saver or sleep timer.</li>
+        <li>That's it. The page refreshes itself; there is nothing to sign into or restart each day.</li>
+      </ol>
+    </section>
+
+    <section class="mt-6 rounded-lg border border-slate-200 bg-white p-5">
+      <div class="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 class="text-sm font-semibold">Board preview</h2>
+        <p id="s-asof" class="text-xs text-slate-500"></p>
+      </div>
+      <p class="mt-1 text-sm text-slate-600">
+        <span id="s-members"></span> · players find you by searching
+        <span id="s-handle" class="font-mono font-semibold text-slate-900"></span> in the app.
+        <a class="underline" href="/members">Manage members</a>.
+      </p>
+      <p id="s-board-empty" hidden class="mt-4 text-sm text-slate-500">
+        Nothing on the board yet. Members appear after the first daily refresh following their acceptance.
+      </p>
+      <div class="mt-4 overflow-x-auto">
+        <table id="s-board" class="w-full min-w-[24rem] text-sm">
+          <thead>
+            <tr class="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500">
+              <th class="py-2 pr-4">#</th><th class="py-2 pr-4">Creature</th><th class="py-2 pr-4">Level</th><th class="py-2">Streak</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</Portal>
+
+<script>
+  import {
+    requireSession,
+    rpc,
+    el,
+    show,
+    toast,
+    fmtDay,
+    loadLocations,
+    mountLocationSelector,
+    displayUrl,
+    creatureStill,
+    type PartnerLocation,
+  } from '../lib/portal';
+
+  interface BoardRow {
+    rank: number;
+    handle: string;
+    creature_name: string;
+    creature_type: string | null;
+    level: number;
+    streak: number;
+  }
+
+  let active: PartnerLocation | null = null;
+  let agreementsCurrent = true;
+
+  function renderLink(): void {
+    if (!active) return;
+    const token = active.display_token;
+    show('s-nolink', !token);
+    show('s-haslink', !!token);
+    el<HTMLButtonElement>('s-generate').disabled = !agreementsCurrent;
+    el<HTMLButtonElement>('s-rotate').disabled = !agreementsCurrent;
+    if (token) {
+      const url = displayUrl(token);
+      el<HTMLInputElement>('s-url').value = url;
+      el<HTMLAnchorElement>('s-open').href = url;
+    }
+  }
+
+  async function rotate(): Promise<void> {
+    if (!active) return;
+    const res = await rpc<Record<string, any>>('rotate_partner_display_token', { p_code_id: active.code_id });
+    if (res.status === 'ok') {
+      active.display_token = String(res.display_token);
+      renderLink();
+      toast('Screen link ready.');
+    } else if (res.status === 'agreements_required') {
+      toast('Please accept the current agreements first (Overview page).');
+    } else if (res.status === 'display_not_provisioned') {
+      show('s-body', false);
+      show('s-unprovisioned', true);
+    } else {
+      toast(`Could not issue a link (${res.status}).`);
+    }
+  }
+
+  async function loadBoard(): Promise<void> {
+    if (!active) return;
+    const res = await rpc<Record<string, any>>('get_my_partner_board', { p_code_id: active.code_id });
+    if (res.status !== 'ok') {
+      el('s-asof').textContent = `Board unavailable (${res.status}).`;
+      return;
+    }
+    const rows = (res.rows ?? []) as BoardRow[];
+    el('s-asof').textContent = res.snapshot_date ? `Standings as of ${fmtDay(res.snapshot_date)}` : 'No refresh has run yet';
+    show('s-board-empty', rows.length === 0);
+    el('s-board').hidden = rows.length === 0;
+    const body = el('s-board').querySelector('tbody')!;
+    body.innerHTML = '';
+    for (const r of rows) {
+      const tr = document.createElement('tr');
+      tr.className = 'border-b border-slate-100';
+      const rank = document.createElement('td');
+      rank.className = 'py-2 pr-4 font-semibold';
+      rank.textContent = String(r.rank);
+      const who = document.createElement('td');
+      who.className = 'flex items-center gap-2 py-2 pr-4';
+      const still = creatureStill(r.creature_type);
+      if (still) {
+        const img = document.createElement('img');
+        img.src = still;
+        img.alt = '';
+        img.width = 28;
+        img.height = 28;
+        img.className = 'h-7 w-7 object-contain';
+        who.appendChild(img);
+      }
+      const handle = document.createElement('span');
+      handle.className = 'font-mono';
+      handle.textContent = r.handle;
+      who.appendChild(handle);
+      const level = document.createElement('td');
+      level.className = 'py-2 pr-4';
+      level.textContent = String(r.level);
+      const streak = document.createElement('td');
+      streak.className = 'py-2';
+      streak.textContent = `${r.streak} day${r.streak === 1 ? '' : 's'}`;
+      tr.append(rank, who, level, streak);
+      body.appendChild(tr);
+    }
+  }
+
+  async function loadScreen(): Promise<void> {
+    if (!active) return;
+    show('s-error', false);
+    show('s-unprovisioned', false);
+    show('s-body', false);
+    show('s-gate', false);
+    show('s-loading', true);
+    if (!active.display_enabled) {
+      show('s-loading', false);
+      show('s-unprovisioned', true);
+      return;
+    }
+    show('s-gate', !agreementsCurrent);
+    el('s-handle').textContent = active.display_handle ?? '';
+    el('s-members').textContent = `${active.member_count} member${active.member_count === 1 ? '' : 's'}${
+      active.pending_count ? `, ${active.pending_count} waiting` : ''
+    }`;
+    renderLink();
+    await loadBoard();
+    show('s-loading', false);
+    show('s-body', true);
+  }
+
+  async function init(): Promise<void> {
+    const state = await loadLocations();
+    if (state.status !== 'ok') {
+      show('s-loading', false);
+      const err = el('s-error');
+      err.textContent =
+        state.status === 'suspended'
+          ? 'This partner account is currently suspended.'
+          : state.status === 'not_a_partner'
+            ? 'This account is not a partner account.'
+            : `Could not load your locations (${state.status}).`;
+      err.hidden = false;
+      return;
+    }
+    agreementsCurrent = state.agreements_current !== false;
+    const locations = state.locations ?? [];
+    active = mountLocationSelector('loc-select', 'loc-wrap', locations, (l) => {
+      active = l;
+      void loadScreen();
+    });
+    if (!active) {
+      show('s-loading', false);
+      const err = el('s-error');
+      err.textContent = 'No locations are attached to this account yet.';
+      err.hidden = false;
+      return;
+    }
+
+    el('s-generate').addEventListener('click', async () => {
+      el<HTMLButtonElement>('s-generate').disabled = true;
+      try {
+        await rotate();
+      } finally {
+        el<HTMLButtonElement>('s-generate').disabled = !agreementsCurrent;
+      }
+    });
+    el('s-rotate').addEventListener('click', async () => {
+      if (!confirm('Rotate the screen link? Every TV showing the current link goes dark until it is given the new one.')) return;
+      el<HTMLButtonElement>('s-rotate').disabled = true;
+      try {
+        await rotate();
+      } finally {
+        el<HTMLButtonElement>('s-rotate').disabled = !agreementsCurrent;
+      }
+    });
+    el('s-copy').addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(el<HTMLInputElement>('s-url').value);
+        toast('Link copied.');
+      } catch {
+        el<HTMLInputElement>('s-url').select();
+        toast('Select the link and copy it.');
+      }
+    });
+
+    await loadScreen();
+  }
+
+  void requireSession()
+    .then(init)
+    .catch((err) => {
+      if (String(err).includes('redirecting')) return;
+      show('s-loading', false);
+      const node = el('s-error');
+      node.textContent = /permission denied/i.test(String(err))
+        ? 'This account is not a partner account.'
+        : String(err);
+      node.hidden = false;
+    });
+</script>

@@ -99,6 +99,111 @@ export function fmtDate(value: unknown): string {
   return new Date(String(value)).toLocaleDateString();
 }
 
+/** A date-only value (YYYY-MM-DD) shown as that calendar day, not shifted by the local zone. */
+export function fmtDay(value: unknown): string {
+  if (!value) return '';
+  return new Date(`${String(value).slice(0, 10)}T00:00:00`).toLocaleDateString();
+}
+
+// ---------------------------------------------------------------------------
+// Locations (F92). One partner login may hold several referral codes, one
+// per venue; the per-location pages (Members, Lobby screen) act on the one
+// the partner has selected. The choice persists per browser so a
+// multi-location manager is not re-asked on every page.
+// ---------------------------------------------------------------------------
+
+export interface PartnerLocation {
+  code_id: string;
+  code: string;
+  partner_name: string | null;
+  address: string | null;
+  is_primary: boolean;
+  listing_published: boolean;
+  display_enabled: boolean;
+  display_handle: string | null;
+  display_token: string | null;
+  member_count: number;
+  pending_count: number;
+}
+
+export interface LocationsState {
+  status: string;
+  agreements_current?: boolean;
+  locations?: PartnerLocation[];
+}
+
+const LOCATION_KEY = 'fc_location';
+
+export function loadLocations(): Promise<LocationsState> {
+  return rpc<LocationsState>('get_my_partner_locations');
+}
+
+/** The remembered location if the login still holds it, else the primary. */
+export function pickLocation(locations: PartnerLocation[]): PartnerLocation | null {
+  if (locations.length === 0) return null;
+  let remembered: string | null = null;
+  try {
+    remembered = localStorage.getItem(LOCATION_KEY);
+  } catch {
+    remembered = null;
+  }
+  return locations.find((l) => l.code_id === remembered) ?? locations.find((l) => l.is_primary) ?? locations[0];
+}
+
+export function rememberLocation(codeId: string): void {
+  try {
+    localStorage.setItem(LOCATION_KEY, codeId);
+  } catch {
+    // Storage blocked: the page still works, the choice just does not persist.
+  }
+}
+
+export function locationLabel(l: PartnerLocation): string {
+  return `${l.partner_name ?? 'Unnamed location'} (${l.code})`;
+}
+
+/**
+ * Fill the `<select id>` with the login's locations and return the active
+ * one. A single-location login sees no selector (the wrapper is hidden);
+ * `onChange` fires with the newly selected location after it is remembered.
+ */
+export function mountLocationSelector(
+  selectId: string,
+  wrapId: string,
+  locations: PartnerLocation[],
+  onChange: (l: PartnerLocation) => void,
+): PartnerLocation | null {
+  const active = pickLocation(locations);
+  const select = el<HTMLSelectElement>(selectId);
+  select.innerHTML = '';
+  for (const l of locations) {
+    const opt = document.createElement('option');
+    opt.value = l.code_id;
+    opt.textContent = locationLabel(l);
+    opt.selected = active?.code_id === l.code_id;
+    select.appendChild(opt);
+  }
+  show(wrapId, locations.length > 1);
+  select.onchange = () => {
+    const next = locations.find((l) => l.code_id === select.value);
+    if (!next) return;
+    rememberLocation(next.code_id);
+    onChange(next);
+  };
+  return active;
+}
+
+/** The public lobby-screen URL for a display token (the token is the capability). */
+export function displayUrl(token: string): string {
+  return `${location.origin}/display?t=${token}`;
+}
+
+/** Brand still for a species key; null for an unhatched egg or an unknown key. */
+const CREATURE_STILLS = new Set(['alieo', 'brutoh', 'chi', 'karmuth', 'wolfie']);
+export function creatureStill(type: string | null | undefined): string | null {
+  return type && CREATURE_STILLS.has(type) ? `/assets/brand/creatures/fc_creature_${type}_front.png` : null;
+}
+
 /** Minimal markdown renderer for OUR OWN published agreement documents.
  * Escapes all HTML first, then applies the constructs the documents use
  * (headings, paragraphs, lists, bold): safe by construction, no dependency. */

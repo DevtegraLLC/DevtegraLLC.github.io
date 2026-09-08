@@ -1,0 +1,245 @@
+---
+import Portal from '../layouts/Portal.astro';
+---
+
+<Portal title="Members">
+  <h1 class="text-2xl font-bold tracking-tight">Members</h1>
+  <p class="mt-2 text-sm text-slate-600">
+    Players who add your location in FitCreature appear here. Accepting a request puts their creature on
+    your board; removing takes it off at the next daily refresh.
+  </p>
+
+  <div id="loc-wrap" hidden class="mt-4">
+    <label for="loc-select" class="block text-xs font-medium text-slate-600">Location</label>
+    <select id="loc-select" class="mt-1 rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm"></select>
+  </div>
+
+  <p id="m-loading" class="mt-6 text-sm text-slate-500">Loading…</p>
+  <p id="m-error" class="mt-6 text-sm text-rose-600" hidden></p>
+
+  <div id="m-gate" hidden class="mt-6 rounded-lg border border-indigo-200 bg-indigo-50 p-4 text-sm text-indigo-900">
+    Accepting members opens once the current agreements are accepted. See the
+    <a class="underline" href="/dashboard">Overview</a> page. You can still review and remove.
+  </div>
+
+  <div id="m-unprovisioned" hidden class="mt-6 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+    This location does not have a board yet. The FitCreature team switches it on; reach out if you would like it.
+  </div>
+
+  <div id="m-body" hidden>
+    <div class="mt-6 rounded-lg border border-slate-200 bg-white p-4 text-sm">
+      <p class="text-xs uppercase tracking-wide text-slate-500">How players find you</p>
+      <p class="mt-1">
+        In the app: Social, then Add Friend, then search
+        <span id="m-handle" class="font-mono font-semibold text-slate-900"></span>.
+        Players see that this is a business account and what joining shares before they send the request.
+      </p>
+    </div>
+
+    <h2 class="mt-8 flex items-center gap-2 text-sm font-semibold">
+      Requests <span id="m-pending-count" class="rounded-full bg-indigo-100 px-2 py-0.5 text-xs text-indigo-700"></span>
+    </h2>
+    <p id="m-pending-empty" class="mt-2 text-sm text-slate-500" hidden>No pending requests.</p>
+    <ul id="m-pending" class="mt-2 divide-y divide-slate-100 rounded-lg border border-slate-200 bg-white"></ul>
+
+    <h2 class="mt-8 flex items-center gap-2 text-sm font-semibold">
+      Members <span id="m-member-count" class="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-700"></span>
+    </h2>
+    <p id="m-members-empty" class="mt-2 text-sm text-slate-500" hidden>
+      No members yet. Once players join, their creatures show on your board after the next daily refresh.
+    </p>
+    <ul id="m-members" class="mt-2 divide-y divide-slate-100 rounded-lg border border-slate-200 bg-white"></ul>
+  </div>
+</Portal>
+
+<script>
+  import {
+    requireSession,
+    rpc,
+    el,
+    show,
+    toast,
+    fmtDate,
+    loadLocations,
+    mountLocationSelector,
+    creatureStill,
+    type PartnerLocation,
+  } from '../lib/portal';
+
+  interface MemberRow {
+    friendship_id: string;
+    handle: string;
+    creature_type: string | null;
+    requested_at?: string;
+    since?: string;
+  }
+
+  let active: PartnerLocation | null = null;
+  let agreementsCurrent = true;
+
+  function row(m: MemberRow, dateLabel: string, actions: HTMLElement[]): HTMLLIElement {
+    const li = document.createElement('li');
+    li.className = 'flex items-center gap-3 px-4 py-3 text-sm';
+    const still = creatureStill(m.creature_type);
+    if (still) {
+      const img = document.createElement('img');
+      img.src = still;
+      img.alt = '';
+      img.width = 36;
+      img.height = 36;
+      img.className = 'h-9 w-9 flex-none object-contain';
+      li.appendChild(img);
+    } else {
+      const egg = document.createElement('span');
+      egg.className = 'flex h-9 w-9 flex-none items-center justify-center rounded-full bg-slate-100 text-lg';
+      egg.textContent = '🥚';
+      egg.title = 'Egg not hatched yet';
+      li.appendChild(egg);
+    }
+    const text = document.createElement('div');
+    text.className = 'min-w-0 grow';
+    const handle = document.createElement('p');
+    handle.className = 'truncate font-mono font-semibold';
+    handle.textContent = m.handle;
+    const sub = document.createElement('p');
+    sub.className = 'text-xs text-slate-500';
+    sub.textContent = dateLabel;
+    text.append(handle, sub);
+    li.appendChild(text);
+    const btns = document.createElement('div');
+    btns.className = 'flex flex-none gap-2';
+    for (const a of actions) btns.appendChild(a);
+    li.appendChild(btns);
+    return li;
+  }
+
+  function button(label: string, cls: string, onClick: () => Promise<void>): HTMLButtonElement {
+    const b = document.createElement('button');
+    b.textContent = label;
+    b.className = `rounded-md px-3 py-1 text-sm ${cls} disabled:opacity-50`;
+    b.addEventListener('click', async () => {
+      b.disabled = true;
+      try {
+        await onClick();
+      } finally {
+        b.disabled = false;
+      }
+    });
+    return b;
+  }
+
+  async function act(fn: string, friendshipId: string, doneMsg: string): Promise<void> {
+    if (!active) return;
+    const res = await rpc<Record<string, any>>(fn, { p_code_id: active.code_id, p_friendship_id: friendshipId });
+    if (res.status === 'ok') {
+      toast(doneMsg);
+    } else if (res.status === 'agreements_required') {
+      toast('Please accept the current agreements first (Overview page).');
+    } else if (res.status === 'not_found') {
+      toast('That request is no longer there.');
+    } else {
+      toast(`Could not complete that (${res.status}).`);
+    }
+    await loadMembers();
+  }
+
+  async function loadMembers(): Promise<void> {
+    if (!active) return;
+    show('m-error', false);
+    show('m-unprovisioned', false);
+    show('m-body', false);
+    show('m-gate', false);
+    show('m-loading', true);
+    const res = await rpc<Record<string, any>>('get_partner_members', { p_code_id: active.code_id });
+    show('m-loading', false);
+    if (res.status === 'display_not_provisioned') {
+      show('m-unprovisioned', true);
+      return;
+    }
+    if (res.status !== 'ok') {
+      const err = el('m-error');
+      err.textContent = `Could not load members (${res.status}).`;
+      err.hidden = false;
+      return;
+    }
+    show('m-gate', !agreementsCurrent);
+    el('m-handle').textContent = active.display_handle ?? '';
+
+    const pending = (res.pending ?? []) as MemberRow[];
+    const members = (res.members ?? []) as MemberRow[];
+    el('m-pending-count').textContent = String(pending.length);
+    el('m-member-count').textContent = String(members.length);
+
+    const pendingList = el('m-pending');
+    pendingList.innerHTML = '';
+    show('m-pending-empty', pending.length === 0);
+    pendingList.hidden = pending.length === 0;
+    for (const m of pending) {
+      const accept = button(
+        'Accept',
+        'bg-indigo-600 font-semibold text-white hover:bg-indigo-500',
+        () => act('partner_accept_member', m.friendship_id, `${m.handle} added.`),
+      );
+      accept.disabled = !agreementsCurrent;
+      const decline = button('Decline', 'border border-slate-300 hover:bg-slate-100', () =>
+        act('partner_remove_member', m.friendship_id, 'Request declined.'),
+      );
+      pendingList.appendChild(row(m, `Requested ${fmtDate(m.requested_at)}`, [accept, decline]));
+    }
+
+    const memberList = el('m-members');
+    memberList.innerHTML = '';
+    show('m-members-empty', members.length === 0);
+    memberList.hidden = members.length === 0;
+    for (const m of members) {
+      const remove = button('Remove', 'border border-slate-300 hover:bg-slate-100', async () => {
+        if (!confirm(`Remove ${m.handle} from this location? Their creature leaves the board at the next daily refresh.`)) return;
+        await act('partner_remove_member', m.friendship_id, `${m.handle} removed.`);
+      });
+      memberList.appendChild(row(m, `Member since ${fmtDate(m.since)}`, [remove]));
+    }
+    show('m-body', true);
+  }
+
+  async function init(): Promise<void> {
+    const state = await loadLocations();
+    if (state.status !== 'ok') {
+      show('m-loading', false);
+      const err = el('m-error');
+      err.textContent =
+        state.status === 'suspended'
+          ? 'This partner account is currently suspended.'
+          : state.status === 'not_a_partner'
+            ? 'This account is not a partner account.'
+            : `Could not load your locations (${state.status}).`;
+      err.hidden = false;
+      return;
+    }
+    agreementsCurrent = state.agreements_current !== false;
+    const locations = state.locations ?? [];
+    active = mountLocationSelector('loc-select', 'loc-wrap', locations, (l) => {
+      active = l;
+      void loadMembers();
+    });
+    if (!active) {
+      show('m-loading', false);
+      const err = el('m-error');
+      err.textContent = 'No locations are attached to this account yet.';
+      err.hidden = false;
+      return;
+    }
+    await loadMembers();
+  }
+
+  void requireSession()
+    .then(init)
+    .catch((err) => {
+      if (String(err).includes('redirecting')) return;
+      show('m-loading', false);
+      const node = el('m-error');
+      node.textContent = /permission denied/i.test(String(err))
+        ? 'This account is not a partner account.'
+        : String(err);
+      node.hidden = false;
+    });
+</script>

@@ -1,0 +1,366 @@
+---
+// The F92 lobby screen. PUBLIC, no session: the 48-hex display token in the
+// URL (`/display?t=<token>`, or `/display#<token>`) is the capability. The
+// page GETs the partner_display edge function once on load and then every
+// `config.refetch_ms`, and cycles the config-driven slides (board, top
+// creatures, join QR, perk), skipping any slide with nothing to show. A TV
+// browser opens it once and leaves it running; nothing here ever needs a
+// click. Everything rendered is data a member already publishes to every
+// friend in the app (handle, creature, level, streak), never a user id.
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>Lobby screen · FitCreature</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🤝</text></svg>" />
+  </head>
+  <body class="screen">
+    <header class="top">
+      <div class="venue">
+        <img id="d-logo" alt="" hidden />
+        <span id="d-venue"></span>
+      </div>
+      <img class="brand" src="/assets/brand/logos/fc_logo_white.png" alt="FitCreature" />
+    </header>
+
+    <main id="d-stage">
+      <section id="d-status" class="slide status active">
+        <p id="d-status-text">Loading…</p>
+      </section>
+
+      <section id="slide-board" class="slide">
+        <h1 class="title">Member board</h1>
+        <ol id="d-board" class="board"></ol>
+      </section>
+
+      <section id="slide-top5" class="slide">
+        <h1 class="title">Top creatures</h1>
+        <div id="d-top" class="cards"></div>
+      </section>
+
+      <section id="slide-join" class="slide join">
+        <div class="joincard">
+          <div id="d-qr" class="qr"></div>
+        </div>
+        <div class="jointext">
+          <h1 class="title">Train here, level up there.</h1>
+          <p class="lead">Scan to get FitCreature. Every real workout shapes your own creature.</p>
+          <p class="lead">Already playing? Add <span id="d-handle" class="mono"></span> as a friend to join this board.</p>
+          <p id="d-joinurl" class="url"></p>
+        </div>
+      </section>
+
+      <section id="slide-perk" class="slide perk">
+        <p class="kicker">Member perk</p>
+        <h1 id="d-perk-title" class="title"></h1>
+        <p id="d-perk-desc" class="lead"></p>
+        <p id="d-perk-code" class="code" hidden></p>
+      </section>
+    </main>
+
+    <footer class="bottom">
+      <span id="d-asof"></span>
+      <span id="d-count"></span>
+    </footer>
+  </body>
+</html>
+
+<style is:global>
+  @import '../styles/global.css';
+
+  html, body { height: 100%; margin: 0; }
+  body.screen {
+    display: flex; flex-direction: column;
+    background: radial-gradient(120% 90% at 50% 0%, #1e1b4b 0%, #0f172a 55%, #020617 100%);
+    color: #f8fafc;
+    font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    overflow: hidden;
+    cursor: none;
+  }
+  .top, .bottom {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 2.2vh 3vw; font-size: 2.4vh; color: #cbd5e1;
+  }
+  .venue { display: flex; align-items: center; gap: 1.2vw; font-size: 3.2vh; font-weight: 700; color: #f8fafc; }
+  .venue img { height: 6vh; width: 6vh; object-fit: contain; border-radius: 1vh; background: #fff; }
+  .brand { height: 4.5vh; }
+  .bottom { border-top: 1px solid rgba(148, 163, 184, 0.2); }
+
+  #d-stage { position: relative; flex: 1; min-height: 0; }
+  .slide {
+    position: absolute; inset: 0; padding: 2vh 5vw;
+    display: flex; flex-direction: column; justify-content: center;
+    opacity: 0; transition: opacity 700ms ease; pointer-events: none;
+  }
+  .slide.active { opacity: 1; }
+  .title { font-size: 6.5vh; font-weight: 800; letter-spacing: -0.02em; margin: 0 0 3vh; }
+  .lead { font-size: 3.4vh; line-height: 1.35; color: #e2e8f0; margin: 0 0 2vh; }
+  .kicker { font-size: 2.8vh; text-transform: uppercase; letter-spacing: 0.25em; color: #a5b4fc; margin: 0 0 1.5vh; }
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: #fbbf24; }
+  .url { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 2.6vh; color: #94a3b8; margin-top: 3vh; }
+
+  .status { align-items: center; text-align: center; font-size: 4vh; color: #cbd5e1; }
+
+  .board {
+    list-style: none; margin: 0; padding: 0;
+    display: grid; grid-template-columns: repeat(2, 1fr); grid-auto-rows: 1fr; gap: 1.6vh 3vw;
+  }
+  .board.single { grid-template-columns: 1fr; max-width: 70vw; }
+  .board li {
+    display: flex; align-items: center; gap: 1.5vw; font-size: 3.6vh;
+    background: rgba(255, 255, 255, 0.05); border-radius: 1.5vh; padding: 1.2vh 2vw;
+  }
+  .board .rank { width: 5vh; font-weight: 800; color: #a5b4fc; }
+  .board img, .board .egg { height: 7vh; width: 7vh; object-fit: contain; flex: none; }
+  .board .egg { display: flex; align-items: center; justify-content: center; font-size: 5vh; }
+  .board .name { flex: 1; font-weight: 700; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .board .meta { color: #cbd5e1; font-size: 2.8vh; white-space: nowrap; }
+
+  .cards { display: flex; gap: 2vw; align-items: stretch; justify-content: center; }
+  .card {
+    flex: 1; max-width: 18vw; display: flex; flex-direction: column; align-items: center; text-align: center;
+    background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(165, 180, 252, 0.25);
+    border-radius: 2.5vh; padding: 3vh 1vw 2.5vh; position: relative;
+  }
+  .card.first { border-color: #fbbf24; background: rgba(251, 191, 36, 0.08); }
+  .card .badge {
+    position: absolute; top: -2.2vh; left: 50%; transform: translateX(-50%);
+    background: #4f46e5; color: #fff; font-weight: 800; font-size: 2.6vh;
+    border-radius: 999px; padding: 0.4vh 2vh;
+  }
+  .card.first .badge { background: #fbbf24; color: #1e1b4b; }
+  .card img, .card .egg { height: 22vh; width: 22vh; object-fit: contain; }
+  .card .egg { display: flex; align-items: center; justify-content: center; font-size: 14vh; }
+  .card .cname { margin-top: 2vh; font-size: 3.4vh; font-weight: 800; max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .card .cmeta { margin-top: 0.8vh; font-size: 2.6vh; color: #cbd5e1; }
+
+  .join { flex-direction: row; align-items: center; gap: 5vw; }
+  .joincard { background: #fff; border-radius: 3vh; padding: 3vh; flex: none; }
+  .qr svg { display: block; height: 52vh; width: 52vh; }
+  .jointext { flex: 1; }
+
+  .perk { align-items: center; text-align: center; }
+  .perk .title { max-width: 80vw; }
+  .perk .lead { max-width: 70vw; }
+  .code {
+    margin-top: 3vh; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 5vh; font-weight: 800;
+    letter-spacing: 0.25em; color: #fbbf24; border: 2px dashed rgba(251, 191, 36, 0.6); border-radius: 2vh; padding: 1.5vh 4vh;
+  }
+</style>
+
+<script>
+  import { supabaseUrl } from '../lib/supabase';
+  import { creatureStill } from '../lib/portal';
+
+  type SlideKey = 'board' | 'top5' | 'join' | 'perk';
+  interface Row { rank: number; creature_name: string; handle: string; creature_type: string | null; level: number; streak: number }
+  interface Perk { title: string; description: string | null; discount_code: string | null }
+  interface Payload {
+    ok: boolean;
+    location: { name: string | null; code: string; handle: string | null; logo_url: string | null };
+    board: { snapshot_date: string | null; member_count: number; rows: Row[] };
+    perks: Perk[];
+    config: { slides?: SlideKey[]; slide_ms?: Record<string, number>; top_count?: number; refetch_ms?: number };
+    join_url: string | null;
+    qr_svg: string | null;
+  }
+
+  const TOKEN_RE = /^[0-9a-f]{48}$/;
+  const DEFAULT_SLIDES: SlideKey[] = ['board', 'top5', 'join', 'perk'];
+  const DEFAULT_MS = 15000;
+  const MIN_REFETCH_MS = 60_000;
+  const RETRY_MS = 60_000;
+
+  const $ = (id: string) => document.getElementById(id)!;
+  const token = (new URLSearchParams(location.search).get('t') ?? location.hash.replace(/^#/, '')).trim();
+
+  let payload: Payload | null = null;
+  let slideTimer: number | undefined;
+  let perkIndex = 0;
+  let slideIndex = -1;
+
+  function status(text: string): void {
+    $('d-status-text').textContent = text;
+    for (const s of document.querySelectorAll('.slide')) s.classList.remove('active');
+    $('d-status').classList.add('active');
+    clearTimeout(slideTimer);
+  }
+
+  function eggOr(type: string | null, cls: string): HTMLElement {
+    const still = creatureStill(type);
+    if (still) {
+      const img = document.createElement('img');
+      img.src = still;
+      img.alt = '';
+      return img;
+    }
+    const egg = document.createElement('span');
+    egg.className = cls;
+    egg.textContent = '🥚';
+    return egg;
+  }
+
+  function renderChrome(p: Payload): void {
+    $('d-venue').textContent = p.location.name ?? '';
+    const logo = $('d-logo') as HTMLImageElement;
+    if (p.location.logo_url) {
+      logo.src = p.location.logo_url;
+      logo.hidden = false;
+    } else {
+      logo.hidden = true;
+    }
+    $('d-asof').textContent = p.board.snapshot_date
+      ? `Standings as of ${new Date(p.board.snapshot_date + 'T00:00:00').toLocaleDateString(undefined, { month: 'long', day: 'numeric' })}`
+      : 'Standings update daily';
+    const n = p.board.member_count;
+    $('d-count').textContent = `${n} member${n === 1 ? '' : 's'}`;
+  }
+
+  function renderBoard(p: Payload): void {
+    const list = $('d-board');
+    list.innerHTML = '';
+    list.classList.toggle('single', p.board.rows.length <= 5);
+    for (const r of p.board.rows) {
+      const li = document.createElement('li');
+      const rank = document.createElement('span');
+      rank.className = 'rank';
+      rank.textContent = String(r.rank);
+      const name = document.createElement('span');
+      name.className = 'name';
+      name.textContent = r.creature_name;
+      const meta = document.createElement('span');
+      meta.className = 'meta';
+      meta.textContent = `Lv ${r.level} · ${r.streak} day streak`;
+      li.append(rank, eggOr(r.creature_type, 'egg'), name, meta);
+      list.appendChild(li);
+    }
+  }
+
+  function renderTop(p: Payload): void {
+    const wrap = $('d-top');
+    wrap.innerHTML = '';
+    const count = Math.max(1, p.config.top_count ?? 5);
+    for (const r of p.board.rows.slice(0, count)) {
+      const card = document.createElement('div');
+      card.className = `card${r.rank === 1 ? ' first' : ''}`;
+      const badge = document.createElement('span');
+      badge.className = 'badge';
+      badge.textContent = `#${r.rank}`;
+      const name = document.createElement('p');
+      name.className = 'cname';
+      name.textContent = r.creature_name;
+      const meta = document.createElement('p');
+      meta.className = 'cmeta';
+      meta.textContent = `Level ${r.level} · ${r.streak} day streak`;
+      card.append(badge, eggOr(r.creature_type, 'egg'), name, meta);
+      wrap.appendChild(card);
+    }
+  }
+
+  function renderJoin(p: Payload): void {
+    // The SVG is rendered by our own edge function from the code (never
+    // partner-authored text), so inserting it as markup is safe.
+    $('d-qr').innerHTML = p.qr_svg ?? '';
+    $('d-handle').textContent = p.location.handle ?? '';
+    $('d-joinurl').textContent = (p.join_url ?? '').replace(/^https?:\/\//, '');
+  }
+
+  function renderPerk(p: Payload): void {
+    if (p.perks.length === 0) return;
+    const perk = p.perks[perkIndex % p.perks.length];
+    perkIndex++;
+    $('d-perk-title').textContent = perk.title;
+    $('d-perk-desc').textContent = perk.description ?? '';
+    const code = $('d-perk-code');
+    code.textContent = perk.discount_code ?? '';
+    code.hidden = !perk.discount_code;
+  }
+
+  function hasContent(p: Payload, key: SlideKey): boolean {
+    switch (key) {
+      case 'board':
+      case 'top5':
+        return p.board.rows.length > 0;
+      case 'join':
+        return !!p.qr_svg;
+      case 'perk':
+        return p.perks.length > 0;
+    }
+  }
+
+  function showSlide(key: SlideKey): void {
+    const p = payload!;
+    if (key === 'board') renderBoard(p);
+    else if (key === 'top5') renderTop(p);
+    else if (key === 'join') renderJoin(p);
+    else renderPerk(p);
+    for (const s of document.querySelectorAll('.slide')) s.classList.remove('active');
+    $(`slide-${key}`).classList.add('active');
+  }
+
+  function nextSlide(): void {
+    const p = payload;
+    if (!p) return;
+    const order = (p.config.slides ?? DEFAULT_SLIDES).filter((k) => DEFAULT_SLIDES.includes(k) && hasContent(p, k));
+    if (order.length === 0) {
+      // A brand-new location with no members, no published perk, and a code
+      // that cannot carry a QR: say what the screen is for, then keep trying.
+      status(`${p.location.name ?? 'This location'} is on FitCreature. Ask the front desk how to join.`);
+      slideTimer = window.setTimeout(nextSlide, DEFAULT_MS);
+      return;
+    }
+    slideIndex = (slideIndex + 1) % order.length;
+    const key = order[slideIndex];
+    showSlide(key);
+    const ms = Math.max(3000, Number(p.config.slide_ms?.[key] ?? DEFAULT_MS));
+    clearTimeout(slideTimer);
+    slideTimer = window.setTimeout(nextSlide, ms);
+  }
+
+  async function fetchPayload(): Promise<void> {
+    let res: Response;
+    try {
+      res = await fetch(`${supabaseUrl()}/functions/v1/partner_display?t=${encodeURIComponent(token)}`, { cache: 'no-store' });
+    } catch {
+      scheduleRefetch(RETRY_MS);
+      if (!payload) status('Connecting…');
+      return;
+    }
+    if (res.status === 404) {
+      payload = null;
+      status('This screen link is no longer active. Open the Lobby screen page in the partner portal for the current link.');
+      scheduleRefetch(RETRY_MS * 15);
+      return;
+    }
+    if (!res.ok) {
+      scheduleRefetch(RETRY_MS);
+      if (!payload) status('Screen unavailable right now. Retrying…');
+      return;
+    }
+    const next = (await res.json()) as Payload;
+    const fresh = payload === null;
+    payload = next;
+    renderChrome(next);
+    if (fresh) {
+      slideIndex = -1;
+      nextSlide();
+    }
+    scheduleRefetch(Math.max(MIN_REFETCH_MS, Number(next.config.refetch_ms ?? 3_600_000)));
+  }
+
+  let refetchTimer: number | undefined;
+  function scheduleRefetch(ms: number): void {
+    clearTimeout(refetchTimer);
+    refetchTimer = window.setTimeout(() => void fetchPayload(), ms);
+  }
+
+  if (!TOKEN_RE.test(token)) {
+    status('This is not a valid screen link. Open the Lobby screen page in the partner portal for the current link.');
+  } else {
+    void fetchPayload();
+  }
+</script>

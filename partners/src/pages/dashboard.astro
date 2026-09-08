@@ -27,6 +27,14 @@ import Portal from '../layouts/Portal.astro';
       <h2 class="font-semibold">Your listing</h2>
       <p id="card-listing" class="mt-1 text-sm text-slate-600"></p>
     </a>
+    <a href="/members" class="rounded-lg border border-slate-200 bg-white p-5 hover:border-indigo-300">
+      <h2 class="font-semibold">Members</h2>
+      <p id="card-members" class="mt-1 text-sm text-slate-600">Players who added your location in the app.</p>
+    </a>
+    <a href="/screen" class="rounded-lg border border-slate-200 bg-white p-5 hover:border-indigo-300">
+      <h2 class="font-semibold">Lobby screen</h2>
+      <p class="mt-1 text-sm text-slate-600">A self-refreshing page for your TV: member board, top creatures, join code, perk.</p>
+    </a>
     <a href="/report" class="rounded-lg border border-slate-200 bg-white p-5 hover:border-indigo-300">
       <h2 class="font-semibold">Performance report</h2>
       <p class="mt-1 text-sm text-slate-600">Scans, redemptions, and campaign-driven signups for your code.</p>
@@ -43,7 +51,7 @@ import Portal from '../layouts/Portal.astro';
 </Portal>
 
 <script>
-  import { requireSession, rpc, callFnJson, el, show, toast } from '../lib/portal';
+  import { requireSession, rpc, callFnJson, el, show, toast, loadLocations } from '../lib/portal';
 
   interface AgreementKind {
     kind: string;
@@ -135,6 +143,19 @@ import Portal from '../layouts/Portal.astro';
         ] ?? String(draft.status)
       : 'Live';
     el('card-listing').textContent = `${live?.business_name ?? 'Your business'}: ${status}.`;
+
+    // Member board summary across every location this login holds (F92).
+    const locs = await loadLocations();
+    if (locs.status === 'ok') {
+      const enabled = (locs.locations ?? []).filter((l) => l.display_enabled);
+      if (enabled.length > 0) {
+        const members = enabled.reduce((n, l) => n + l.member_count, 0);
+        const pending = enabled.reduce((n, l) => n + l.pending_count, 0);
+        el('card-members').textContent =
+          `${members} member${members === 1 ? '' : 's'}` +
+          (pending > 0 ? `, ${pending} request${pending === 1 ? '' : 's'} waiting.` : '.');
+      }
+    }
   }
 
   void requireSession().then(refresh).catch((err) => {

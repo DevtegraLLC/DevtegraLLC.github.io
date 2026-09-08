@@ -32,6 +32,9 @@ const PAGES = [
   'account/index.html',
   'agreement/index.html',
   'admin/index.html',
+  'members/index.html',
+  'screen/index.html',
+  'display/index.html',
 ];
 for (const page of PAGES) {
   ok(fs.existsSync(path.join('dist', page)), `built: ${page}`);
@@ -71,8 +74,36 @@ for (const needle of [
   'admin_publish_agreement',
   'admin_set_partner_status',
   'get_my_agreement_acceptances',
+  // F92 partner display board
+  'get_my_partner_locations',
+  'get_partner_members',
+  'partner_accept_member',
+  'partner_remove_member',
+  'get_my_partner_board',
+  'rotate_partner_display_token',
+  'functions/v1/partner_display',
 ]) {
   ok(all.includes(needle), `wired: ${needle}`);
+}
+
+// The lobby screen is a public page: no session guard, the token rides the
+// URL, and it must never fetch with a signed-in session (a leaked link must
+// not carry a login). Its own bundle is the one that names partner_display.
+const displayHtml = fs.readFileSync('dist/display/index.html', 'utf8');
+const displayScripts = [...displayHtml.matchAll(/<script[^>]+src="([^"]+)"/g)].map((m) => m[1]);
+const displayBundle = displayScripts
+  .map((src) => fs.readFileSync(path.join('dist', src.replace(/^\//, '')), 'utf8'))
+  .join('\n');
+ok(displayBundle.includes('partner_display'), 'display page calls partner_display');
+ok(!displayBundle.includes('requireSession') && !displayBundle.includes('getSession'), 'display page needs no session');
+ok(displayHtml.includes('robots') && displayHtml.includes('noindex'), 'display page is noindex');
+// Slide skeletons all present (the config decides which run).
+for (const slide of ['slide-board', 'slide-top5', 'slide-join', 'slide-perk']) {
+  ok(displayHtml.includes(`id="${slide}"`), `display slide: ${slide}`);
+}
+// Creature stills the board renders ride the brand library.
+for (const s of ['alieo', 'brutoh', 'chi', 'karmuth', 'wolfie']) {
+  ok(fs.existsSync(`dist/assets/brand/creatures/fc_creature_${s}_front.png`), `creature still present: ${s}`);
 }
 
 // The report page must carry the not-counted install framing (annex §9.5:

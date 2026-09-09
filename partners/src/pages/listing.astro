@@ -14,6 +14,10 @@ import Portal from '../layouts/Portal.astro';
 
   <p id="listing-loading" class="mt-4 text-sm text-slate-500">Loading…</p>
 
+  {/* Role line (Decision 6.139): a location manager edits the venues assigned
+      to its login, and the server sends back only those. */}
+  <p id="role-note" hidden class="mt-4 rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-700"></p>
+
   <div id="status-banner" hidden class="mt-4 rounded-lg border p-4 text-sm"></div>
   <p id="scope-hint" hidden class="mt-2 text-xs text-slate-500">
     Your card is shown to players near your venues, so every location needs its map pin (latitude and
@@ -40,11 +44,14 @@ import Portal from '../layouts/Portal.astro';
         Submit for review
       </button>
     </div>
+    {/* partner_draft_submit_block: why this login cannot send the submission
+        as it stands, so nobody waits on a button that would be refused. */}
+    <p id="submit-note" hidden class="text-sm text-slate-600"></p>
   </form>
 </Portal>
 
 <script>
-  import { requireSession, rpc, el, show, toast } from '../lib/portal';
+  import { cacheRole, el, requireSession, rpc, show, STALE_DRAFT_TEXT, submitBlockText, toast } from '../lib/portal';
 
   interface Perk {
     title: string | null;
@@ -52,7 +59,9 @@ import Portal from '../layouts/Portal.astro';
     discount_code: string | null;
   }
 
-  // One live venue as get_my_partner_brand().live.locations reports it.
+  // One live venue as get_my_partner_brand().live.locations reports it. The
+  // array is already filtered to what this login may touch (Decision 6.139),
+  // so presence IS the capability; `via` only says how it is reached.
   interface LiveLocation {
     code_id: string;
     code: string;
@@ -61,12 +70,15 @@ import Portal from '../layouts/Portal.astro';
     latitude: number | null;
     longitude: number | null;
     has_location: boolean;
-    held: boolean;
+    via: string;
     perks: Perk[];
   }
 
   // The wire shape of one draft entry (save_partner_locations_draft).
+  // entry_id is minted by the server on first save and is the merge key: a
+  // save replaces exactly the entries it carries and keeps everything else.
   interface LocationEntry {
+    entry_id?: string;
     code_id?: string;
     label: string | null;
     address: string | null;
@@ -78,6 +90,10 @@ import Portal from '../layouts/Portal.astro';
   let limits: Record<string, number> = {};
   let inReview = false;
   let liveByCode = new Map<string, LiveLocation>();
+  // The draft's concurrency token: null when the brand has no open draft.
+  let expectedUpdatedAt: string | null = null;
+  // Entries withdrawn from the draft since the last save (p_remove_entry_ids).
+  let removedEntryIds: string[] = [];
 
   const esc = (v: unknown): string =>
     String(v ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
@@ -109,15 +125,17 @@ import Portal from '../layouts/Portal.astro';
   }
 
   // One card per venue: a live location (code_id set) or a new one (none yet).
+  // A card carries the draft entry_id it stands for, so a save addresses the
+  // same entry every time and a withdrawal names it explicitly.
   function locationCard(live: LiveLocation | null, seed: Partial<LocationEntry>): HTMLElement {
     const card = document.createElement('section');
     card.className = 'loc-card rounded-lg border border-slate-200 bg-slate-50 p-5 space-y-4';
     if (live) card.dataset.codeId = live.code_id;
+    if (seed.entry_id) card.dataset.entryId = seed.entry_id;
     const meta: string[] = [];
     if (live) {
       meta.push(`<span class="font-mono">${esc(live.code)}</span>`);
       if (!live.has_location) meta.push('no map pin yet');
-      if (!live.held) meta.push('managed by another login');
     } else {
       meta.push('new venue: its code is assigned at approval');
     }
@@ -127,7 +145,10 @@ import Portal from '../layouts/Portal.astro';
           <h2 class="text-sm font-semibold" data-title></h2>
           <p class="text-xs text-slate-500">${meta.join(' · ')}</p>
         </div>
-        ${live ? '' : '<button type="button" data-remove class="text-sm text-slate-400 hover:text-rose-600">Remove</button>'}
+        <div class="flex shrink-0 items-center gap-3">
+          ${live ? '<button type="button" data-discard hidden class="text-sm text-slate-400 hover:text-rose-600">Discard staged change</button>' : ''}
+          ${live ? '' : '<button type="button" data-remove class="text-sm text-slate-400 hover:text-rose-600">Remove</button>'}
+        </div>
       </div>
       <div>
         <label class="block text-sm font-medium">Location name</label>
@@ -180,11 +201,13 @@ import Portal from '../layouts/Portal.astro';
       const address = input(card, 'address').value.trim();
       title.textContent = label || address || (live ? 'Unnamed location' : 'New location');
     };
+    // The venue name's limit is named location_label in partner_field_limits.
+    const LIMIT_KEY: Record<string, string> = { label: 'location_label', address: 'address' };
     for (const key of ['label', 'address'] as const) {
       const field = input(card, key);
       const count = card.querySelector(`[data-count="${key}"]`) as HTMLElement;
       const update = () => {
-        count.textContent = `${field.value.length}/${limits[key] ?? '…'} characters`;
+        count.textContent = `${field.value.length}/${limits[LIMIT_KEY[key]] ?? '…'} characters`;
         retitle();
       };
       field.oninput = update;
@@ -198,7 +221,32 @@ import Portal from '../layouts/Portal.astro';
       }
       rows.appendChild(perkRow());
     });
-    card.querySelector('[data-remove]')?.addEventListener('click', () => card.remove());
+
+    // A new venue that is only staged: withdrawing it names its entry so the
+    // next save removes exactly that entry and leaves the rest in place.
+    card.querySelector('[data-remove]')?.addEventListener('click', () => {
+      if (card.dataset.entryId) removedEntryIds.push(card.dataset.entryId);
+      card.remove();
+    });
+
+    // A live venue with a staged change can go back to what is live today.
+    const discard = card.querySelector('[data-discard]') as HTMLButtonElement | null;
+    if (discard && live) {
+      discard.hidden = !seed.entry_id;
+      discard.addEventListener('click', () => {
+        if (card.dataset.entryId) removedEntryIds.push(card.dataset.entryId);
+        delete card.dataset.entryId;
+        discard.hidden = true;
+        input(card, 'label').value = live.label ?? '';
+        input(card, 'address').value = live.address ?? '';
+        input(card, 'latitude').value = live.latitude != null ? String(live.latitude) : '';
+        input(card, 'longitude').value = live.longitude != null ? String(live.longitude) : '';
+        rows.innerHTML = '';
+        for (const perk of live.perks ?? []) rows.appendChild(perkRow(perk));
+        for (const key of ['label', 'address'] as const) input(card, key).dispatchEvent(new Event('input'));
+        toast('Staged change withdrawn. Save the draft to make it stick.');
+      });
+    }
     return card;
   }
 
@@ -215,6 +263,7 @@ import Portal from '../layouts/Portal.astro';
       perks: readPerks(card),
     };
     if (card.dataset.codeId) entry.code_id = card.dataset.codeId;
+    if (card.dataset.entryId) entry.entry_id = card.dataset.entryId;
     return entry;
   }
 
@@ -294,6 +343,12 @@ import Portal from '../layouts/Portal.astro';
   // in the SENT array) is returned so the card can be highlighted.
   function describe(field: string, code: string): { text: string; index: number | null } {
     const readable = CODE_TEXT[code] ?? code.replaceAll('_', ' ');
+    if (/^remove_\d+$/.test(field)) {
+      return {
+        text: 'One of the changes being withdrawn belongs to another login, so it stays in the submission.',
+        index: null,
+      };
+    }
     const m = /^location_(\d+)(?:_(.+))?$/.exec(field);
     if (!m) {
       if (field === 'locations') {
@@ -319,6 +374,8 @@ import Portal from '../layouts/Portal.astro';
         unknown_location: 'that venue is no longer part of your brand',
         duplicate_location: 'the same venue appears twice',
         not_an_object: 'could not be read',
+        forbidden_location: 'that venue is not one of the ones assigned to your login',
+        forbidden_new_location: 'adding a venue is done by a brand login',
       };
       return { text: `Location ${index}: ${whole[code] ?? readable}.`, index };
     }
@@ -384,10 +441,14 @@ import Portal from '../layouts/Portal.astro';
     }
     limits = brand.field_limits ?? {};
     CODE_TEXT.max_perks = `can hold up to ${limits.max_perks ?? 5} perks`;
+    cacheRole(brand.role);
 
     const live = (brand.live ?? {}) as Record<string, any>;
     const draft = (brand.draft ?? null) as Record<string, any> | null;
     inReview = draft?.status === 'submitted';
+    // The token every save must carry; null while the brand has no draft.
+    expectedUpdatedAt = (draft?.updated_at as string | undefined) ?? null;
+    removedEntryIds = [];
     const liveLocations = (live.locations ?? []) as LiveLocation[];
     liveByCode = new Map(liveLocations.map((l) => [l.code_id, l]));
     const draftEntries = ((draft?.locations ?? []) as Array<Record<string, any>>);
@@ -406,6 +467,7 @@ import Portal from '../layouts/Portal.astro';
       // pin in the draft means "keep the live one", so the live pin shows.
       const seed: Partial<LocationEntry> = d
         ? {
+            entry_id: d.entry_id as string | undefined,
             label: (d.label as string | undefined) ?? null,
             address: (d.address as string | undefined) ?? null,
             latitude: d.latitude ?? l.latitude,
@@ -418,6 +480,7 @@ import Portal from '../layouts/Portal.astro';
     for (const d of newEntries) {
       wrap.appendChild(
         locationCard(null, {
+          entry_id: d.entry_id as string | undefined,
           label: (d.label as string | undefined) ?? null,
           address: (d.address as string | undefined) ?? null,
           latitude: d.latitude ?? null,
@@ -429,22 +492,61 @@ import Portal from '../layouts/Portal.astro';
 
     show('scope-hint', live.scope === 'regional');
 
+    // Role presentation (Decision 6.139). The server already filtered these
+    // arrays and refuses anything outside them, so this is wording, not a rule.
+    const reach = liveLocations.length;
+    const brandCount = Number(live.location_count ?? reach);
+    const roleNote = el('role-note');
+    if (brand.role === 'location_manager') {
+      const others = brandCount - reach;
+      roleNote.textContent =
+        `Your login covers ${reach} of the ${brandCount} location${brandCount === 1 ? '' : 's'} on this card` +
+        (others > 0
+          ? others === 1
+            ? '. The other venue is edited by the login that holds it.'
+            : `. The other ${others} venues are edited by the logins that hold them.`
+          : '.');
+      roleNote.hidden = false;
+    } else {
+      roleNote.hidden = true;
+    }
+    // Adding a venue is a brand-admin action, so the control follows the flag.
+    show('loc-add', brand.can_add_location !== false);
+
+    const otherEntries = Number(draft?.other_entry_count ?? 0);
     const pending = draftEntries.length;
     if (inReview) {
       banner('info', 'Your changes are with the FitCreature team. Editing reopens once the review finishes.');
     } else if (draft?.status === 'changes_requested') {
       banner('warn', `Changes requested: ${draft.review_note ?? 'see the note from the team.'} Edit below and resubmit.`);
     } else if (draft) {
+      const others =
+        otherEntries > 0
+          ? ` ${otherEntries} more change${otherEntries === 1 ? '' : 's'} from another login ride along and stay as they are.`
+          : '';
       banner(
         'info',
-        pending > 0
+        (pending > 0
           ? `You have a draft in progress with ${pending} location change${pending === 1 ? '' : 's'}. Submit it when it's ready.`
-          : "You have a draft in progress. Submit it when it's ready.",
+          : "You have a draft in progress. Submit it when it's ready.") + others,
       );
+    }
+
+    // can_submit / submit_block come from the server so the button and the
+    // refusal can never disagree.
+    const block = (brand.submit_block ?? null) as string | null;
+    const submitNote = el('submit-note');
+    const blocked = block !== null && block !== 'no_draft';
+    if (blocked) {
+      submitNote.textContent = submitBlockText(block);
+      submitNote.hidden = false;
+    } else {
+      submitNote.hidden = true;
     }
 
     show('listing-form', true);
     setEditing(!inReview);
+    if (!inReview && blocked) el<HTMLButtonElement>('btn-submit').disabled = true;
   }
 
   el('loc-add').addEventListener('click', () => {
@@ -459,15 +561,39 @@ import Portal from '../layouts/Portal.astro';
     input(card, 'label').focus();
   });
 
+  // One draft per brand, so another login may have saved since this page
+  // loaded. A stale answer carries no draft body on purpose: reloading is the
+  // only honest way forward, and it never overwrites their work.
+  function staleBanner(): void {
+    const node = el('status-banner');
+    node.hidden = false;
+    node.className = 'mt-4 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900';
+    node.textContent = `${STALE_DRAFT_TEXT} `;
+    const reload = document.createElement('button');
+    reload.type = 'button';
+    reload.textContent = 'Reload the submission';
+    reload.className = 'rounded-md border border-amber-400 bg-white px-3 py-1 text-xs hover:bg-amber-100';
+    reload.addEventListener('click', () => void load());
+    node.appendChild(reload);
+  }
+
   // Saves the draft; returns the sent cards on success, null when the caller
   // should stop (errors already shown).
   async function save(): Promise<HTMLElement[] | null> {
     show('form-errors', false);
     clearHighlights();
     const { entries, sent } = collect();
-    const res = await rpc<Record<string, any>>('save_partner_locations_draft', { p_locations: entries });
+    const res = await rpc<Record<string, any>>('save_partner_locations_draft', {
+      p_locations: entries,
+      p_expected_updated_at: expectedUpdatedAt,
+      p_remove_entry_ids: removedEntryIds,
+    });
     if (res.status === 'invalid') {
       showErrors(res.errors ?? [], sent);
+      return null;
+    }
+    if (res.status === 'stale') {
+      staleBanner();
       return null;
     }
     if (res.status === 'in_review') {
@@ -478,6 +604,8 @@ import Portal from '../layouts/Portal.astro';
       toast(`Could not save (${res.status}).`);
       return null;
     }
+    expectedUpdatedAt = (res.updated_at as string | undefined) ?? expectedUpdatedAt;
+    removedEntryIds = [];
     return sent;
   }
 
@@ -486,12 +614,9 @@ import Portal from '../layouts/Portal.astro';
     const sent = await save();
     if (!sent) return;
     toast('Draft saved.');
-    banner(
-      'info',
-      sent.length > 0
-        ? `You have a draft in progress with ${sent.length} location change${sent.length === 1 ? '' : 's'}. Submit it when it's ready.`
-        : 'Draft saved with no location changes. Edit a venue or add one, then submit.',
-    );
+    // Reload so every card carries the entry_id the server minted, and so the
+    // submit state reflects what is now in the submission.
+    await load();
   });
 
   el('btn-submit').addEventListener('click', async () => {
@@ -503,6 +628,8 @@ import Portal from '../layouts/Portal.astro';
       setEditing(false);
     } else if (res.status === 'agreements_required') {
       banner('warn', 'Please accept the current agreements on the Overview page first.');
+    } else if (res.status === 'forbidden_submit') {
+      banner('info', submitBlockText(res.reason));
     } else if (res.status === 'location_required' || res.status === 'invalid') {
       showErrors(res.errors ?? [], sent);
     } else if (res.status === 'in_review') {

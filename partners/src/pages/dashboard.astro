@@ -4,6 +4,8 @@ import Portal from '../layouts/Portal.astro';
 
 <Portal title="Overview">
   <h1 class="text-2xl font-bold tracking-tight">Overview</h1>
+  {/* Which login this is and what it reaches (Decision 6.139). */}
+  <p id="dash-role" hidden class="mt-2 text-sm text-slate-600"></p>
   <p id="dash-loading" class="mt-4 text-sm text-slate-500">Loading…</p>
   <p id="dash-error" class="mt-4 text-sm text-rose-600" hidden></p>
 
@@ -47,6 +49,12 @@ import Portal from '../layouts/Portal.astro';
       <h2 class="font-semibold">Print pack</h2>
       <p class="mt-1 text-sm text-slate-600">Your QR at print resolution, plus copy you can use as-is.</p>
     </a>
+    {/* Brand-admin only: the server answers a manager's get_my_partner_team
+        with forbidden_brand, so the card follows the role. */}
+    <a id="card-team-link" href="/team" hidden class="rounded-lg border border-slate-200 bg-white p-5 hover:border-indigo-300">
+      <h2 class="font-semibold">Team</h2>
+      <p id="card-team" class="mt-1 text-sm text-slate-600">Who can sign in for your business, and which venues each login reaches.</p>
+    </a>
     <a href="/account" class="rounded-lg border border-slate-200 bg-white p-5 hover:border-indigo-300">
       <h2 class="font-semibold">Account</h2>
       <p class="mt-1 text-sm text-slate-600">Password, email, extra sign-in security, your signed agreements.</p>
@@ -55,7 +63,7 @@ import Portal from '../layouts/Portal.astro';
 </Portal>
 
 <script>
-  import { requireSession, rpc, callFnJson, el, show, toast, loadLocations } from '../lib/portal';
+  import { cacheRole, callFnJson, el, loadLocations, requireSession, rpc, show, toast } from '../lib/portal';
 
   interface AgreementKind {
     kind: string;
@@ -154,12 +162,31 @@ import Portal from '../layouts/Portal.astro';
     const published = liveBrand?.listing_published === false ? ' Not shown in the app yet.' : '';
     el('card-brand').textContent = `${liveBrand?.name ?? 'Your business'}: ${draftStatus(draft)}.${published}`;
 
-    // The locations card: how many venues + the shared draft's state, with
-    // the location changes riding in it.
-    const count = Array.isArray(liveBrand?.locations) ? liveBrand.locations.length : 0;
+    // The locations card: how many venues this login reaches (the server
+    // filtered the array) plus the shared draft's state, with the location
+    // changes riding in it.
+    const reach = Array.isArray(liveBrand?.locations) ? liveBrand.locations.length : 0;
+    const brandCount = Number(liveBrand?.location_count ?? reach);
     const pendingLocs = Array.isArray(draft?.locations) ? draft.locations.length : 0;
     const locNote = pendingLocs > 0 ? ` ${pendingLocs} location change${pendingLocs === 1 ? '' : 's'} in the draft.` : '';
-    el('card-listing').textContent = `${count} location${count === 1 ? '' : 's'}. ${draftStatus(draft)}.${locNote}`;
+    const reachText =
+      brand.role === 'location_manager' && brandCount !== reach
+        ? `${reach} of ${brandCount} locations`
+        : `${reach} location${reach === 1 ? '' : 's'}`;
+    el('card-listing').textContent = `${reachText}. ${draftStatus(draft)}.${locNote}`;
+
+    // Role line + the brand-admin-only Team card.
+    cacheRole(brand.role);
+    show('card-team-link', brand.role === 'brand_admin');
+    const named = (Array.isArray(liveBrand?.locations) ? liveBrand.locations : [])
+      .map((l: Record<string, any>) => `${l.label ?? l.address ?? 'Unnamed location'} (${l.code})`)
+      .join(', ');
+    const roleLine = el('dash-role');
+    roleLine.textContent =
+      brand.role === 'brand_admin'
+        ? `Brand admin for ${liveBrand?.name ?? 'your business'}: every venue, including any added later, plus the brand section and the team.`
+        : `Location manager for ${liveBrand?.name ?? 'your business'}: ${named || 'no venues assigned yet'}.`;
+    roleLine.hidden = false;
 
     // Member board summary across every location this login holds (F92).
     const locs = await loadLocations();

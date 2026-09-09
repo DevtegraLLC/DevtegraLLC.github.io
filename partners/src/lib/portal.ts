@@ -82,6 +82,7 @@ export function saveBlob(blob: Blob, filename: string): void {
 
 export async function signOut(): Promise<void> {
   await supabase().auth.signOut();
+  forgetRole();
   location.href = '/';
 }
 
@@ -96,13 +97,162 @@ export function fmtDay(value: unknown): string {
   return new Date(`${String(value).slice(0, 10)}T00:00:00`).toLocaleDateString();
 }
 
+/** A timestamp shown with the time of day (last sign-in, request filed). */
+export function fmtDateTime(value: unknown): string {
+  if (!value) return '';
+  return new Date(String(value)).toLocaleString();
+}
+
 // ---------------------------------------------------------------------------
-// Locations (F92, Decisions 6.137 / 6.138). A partner login belongs to one
-// BRAND and may hold several of its locations (one referral code per venue);
-// the per-location pages (Members, Lobby screen, Report, Print pack) act on
-// the one the partner has selected. The choice persists per browser so a
-// multi-location manager is not re-asked on every page. The Locations page
-// itself edits every venue at once (one draft per brand) and has no selector.
+// Roles (Decision 6.139). A brand may have several logins. A BRAND grant
+// (brand_admin) reaches every venue of the brand, present and future; a
+// LOCATION grant (location_manager) reaches exactly the venues it was given.
+// The server decides all of it: get_my_partner_brand hands back role,
+// can_edit_brand, can_add_location, can_submit and submit_block, and its
+// locations arrays arrive already filtered. Everything below is PRESENTATION
+// on top of those answers, never a second rule: hiding a control is a
+// courtesy, and the same call is refused server-side either way.
+// ---------------------------------------------------------------------------
+
+export type PartnerRole = 'brand_admin' | 'location_manager';
+
+export function isRole(value: unknown): value is PartnerRole {
+  return value === 'brand_admin' || value === 'location_manager';
+}
+
+/** "Brand admin" / "Location manager", for a chip or a sentence. */
+export function roleLabel(role: unknown): string {
+  return role === 'brand_admin' ? 'Brand admin' : role === 'location_manager' ? 'Location manager' : 'Unknown role';
+}
+
+/** What the role reaches, in one plain line. */
+export function roleReach(role: unknown): string {
+  return role === 'brand_admin'
+    ? 'Every venue of the brand, including any added later, plus the brand section and the team.'
+    : 'The venues assigned to this login.';
+}
+
+const ROLE_KEY = 'fc_role';
+
+export function cachedRole(): PartnerRole | null {
+  try {
+    const value = localStorage.getItem(ROLE_KEY);
+    return isRole(value) ? value : null;
+  } catch {
+    // Storage blocked: the nav simply paints once the role arrives.
+    return null;
+  }
+}
+
+export function cacheRole(role: unknown): void {
+  if (!isRole(role)) return;
+  try {
+    localStorage.setItem(ROLE_KEY, role);
+  } catch {
+    // Storage blocked: nothing to remember between pages, which is fine.
+  }
+  paintNavRole(role);
+}
+
+export function forgetRole(): void {
+  try {
+    localStorage.removeItem(ROLE_KEY);
+  } catch {
+    // Storage blocked: there was nothing remembered to clear.
+  }
+}
+
+/** Show the Team link for a brand admin, hide it otherwise. */
+export function paintNavRole(role: PartnerRole | null): void {
+  const link = document.getElementById('nav-team');
+  if (link) link.hidden = role !== 'brand_admin';
+}
+
+/**
+ * Paint the nav from the remembered role, then confirm it with the server.
+ * A page that already loads the role calls `cacheRole` instead of waiting
+ * for this. Admin sessions are not partners, so their nav keeps Team hidden.
+ */
+export async function syncNavRole(): Promise<void> {
+  paintNavRole(cachedRole());
+  const { data } = await supabase().auth.getSession();
+  if (!data.session || roleOf(data.session) !== 'partner_user') {
+    paintNavRole(null);
+    return;
+  }
+  const account = await rpc<Record<string, unknown>>('get_my_partner_account');
+  if (account.status !== 'ok') return;
+  if (isRole(account.role)) cacheRole(account.role);
+}
+
+/**
+ * Team-write outcomes, said as what to do next rather than as a code. Every
+ * one of these is a soft status the RPCs in Decision 6.139 can return.
+ */
+const TEAM_STATUS_TEXT: Record<string, string> = {
+  last_brand_admin:
+    'A brand always keeps at least one active brand admin. Give another login brand admin first, then this one can change.',
+  self_demote:
+    'This is the only active brand admin, so it keeps brand access for now. Promote another login, then step this one down.',
+  self_suspend:
+    'A login cannot suspend itself. Another brand admin can do it, or the FitCreature team can help.',
+  operator_only:
+    'Switching a suspended login back on is done by the FitCreature team. Reach out and we will restore it.',
+  is_brand_admin:
+    'A brand admin already reaches every venue, so single venues are not assigned to it. Change the role to location manager first.',
+  not_granted: 'That venue was already unassigned. Reload for the current list.',
+  not_found: 'That login is no longer part of your brand. Reload for the current list.',
+  forbidden_code: "That venue is not one of your brand's active locations. Reload for the current list.",
+  forbidden_brand: 'Team changes are made by a brand login.',
+  agreements_required: 'Please accept the current agreements on the Overview page first, then try again.',
+  already_requested: 'There is already an open request for that address, listed under requests waiting.',
+  invalid_email: 'That email address could not be read. Check it and try again.',
+  invalid_name: 'That contact name could not be read. Plain letters, spaces, and numbers work best.',
+  invalid_role: 'That role could not be read. Reload and try again.',
+  invalid_status: 'That change could not be read. Reload and try again.',
+  locations_required: 'A location manager needs at least one venue. Pick the venues this login covers.',
+  brand_mismatch: 'That venue belongs to another brand. Reload for the current list.',
+  invalid_code: 'That venue could not be found. Reload for the current list.',
+  suspended: 'This login is suspended, so it cannot make changes. Reach out to the FitCreature team.',
+};
+
+export function teamStatusText(status: unknown): string {
+  const key = String(status ?? '');
+  return TEAM_STATUS_TEXT[key] ?? `That did not go through (${key || 'unknown'}). Reload and try again.`;
+}
+
+/**
+ * Why this login cannot send the submission as it stands
+ * (partner_draft_submit_block). NULL means it can.
+ */
+const SUBMIT_BLOCK_TEXT: Record<string, string> = {
+  brand_section:
+    'This submission also changes the brand section (business name, website, or brand-wide perks), so a brand login sends it.',
+  logo: 'A new logo is staged in this submission, so a brand login sends it.',
+  new_location: 'This submission proposes a new venue, so a brand login sends it.',
+  forbidden_location:
+    'This submission includes a venue outside the ones assigned to your login, so a brand login sends it.',
+  no_draft: 'There is nothing staged to send yet. Make a change and save it first.',
+};
+
+export function submitBlockText(block: unknown): string {
+  const key = String(block ?? '');
+  return SUBMIT_BLOCK_TEXT[key] ?? 'A brand login sends this submission.';
+}
+
+/** The stale-save line: one draft per brand, so another login may have moved first. */
+export const STALE_DRAFT_TEXT =
+  'Another login changed this submission while this page was open. Reload to pick up their version, then make your change again.';
+
+// ---------------------------------------------------------------------------
+// Locations (F92, Decisions 6.137 / 6.138 / 6.139). A partner login belongs to
+// one BRAND and reaches some of its locations (one referral code per venue):
+// every venue for a brand admin, the granted ones for a location manager. The
+// per-location pages (Members, Lobby screen, Report, Print pack) act on the one
+// the partner has selected, and the list arrives already filtered by the
+// server. The choice persists per browser so a multi-venue login is not
+// re-asked on every page. The Locations page itself edits every venue the
+// login reaches at once (one draft per brand) and has no selector.
 // ---------------------------------------------------------------------------
 
 export interface PartnerLocation {
@@ -111,7 +261,9 @@ export interface PartnerLocation {
   brand_name: string | null;
   label: string | null;
   address: string | null;
-  is_primary: boolean;
+  is_default: boolean;
+  is_active: boolean;
+  via_role: PartnerRole;
   listing_published: boolean;
   display_enabled: boolean;
   display_handle: string | null;
@@ -124,6 +276,8 @@ export interface LocationsState {
   status: string;
   brand_id?: string;
   brand_name?: string;
+  role?: PartnerRole;
+  default_code_id?: string | null;
   agreements_current?: boolean;
   locations?: PartnerLocation[];
 }
@@ -134,7 +288,7 @@ export function loadLocations(): Promise<LocationsState> {
   return rpc<LocationsState>('get_my_partner_locations');
 }
 
-/** The remembered location if the login still holds it, else the primary. */
+/** The remembered location if the login still reaches it, else its default. */
 export function pickLocation(locations: PartnerLocation[]): PartnerLocation | null {
   if (locations.length === 0) return null;
   let remembered: string | null = null;
@@ -143,7 +297,7 @@ export function pickLocation(locations: PartnerLocation[]): PartnerLocation | nu
   } catch {
     remembered = null;
   }
-  return locations.find((l) => l.code_id === remembered) ?? locations.find((l) => l.is_primary) ?? locations[0];
+  return locations.find((l) => l.code_id === remembered) ?? locations.find((l) => l.is_default) ?? locations[0];
 }
 
 export function rememberLocation(codeId: string): void {

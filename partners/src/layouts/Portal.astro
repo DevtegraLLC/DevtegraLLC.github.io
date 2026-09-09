@@ -33,6 +33,11 @@ const { title, nav = true } = Astro.props;
               <a href="/screen" class="hover:text-slate-900">Lobby screen</a>
               <a href="/report" class="hover:text-slate-900">Report</a>
               <a href="/print-pack" class="hover:text-slate-900">Print pack</a>
+              {/* Team is brand-admin only (Decision 6.139). Hidden until the
+                  role is known; the server refuses the page's calls anyway. */}
+              <a id="nav-team" href="/team" class="hover:text-slate-900" hidden>
+                Team
+              </a>
               <a href="/account" class="hover:text-slate-900">Account</a>
               <button id="nav-signout" class="rounded-md border border-slate-300 px-3 py-1 hover:bg-slate-100">
                 Sign out
@@ -48,8 +53,15 @@ const { title, nav = true } = Astro.props;
     {
       nav && (
         <script>
-          import { signOut } from '../lib/portal';
+          import { signOut, syncNavRole } from '../lib/portal';
           document.getElementById('nav-signout')?.addEventListener('click', () => void signOut());
+          // The Team link follows the login's role. Painted from the
+          // remembered role first, then confirmed with the server; a page that
+          // loads the role itself calls cacheRole and paints sooner.
+          void syncNavRole().catch(() => {
+            // Not a partner session, or the call did not come back: Team stays
+            // hidden, and every team RPC is refused server-side regardless.
+          });
         </script>
       )
     }

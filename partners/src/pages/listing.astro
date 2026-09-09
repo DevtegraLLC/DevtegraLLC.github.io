@@ -48,10 +48,102 @@ import Portal from '../layouts/Portal.astro';
         as it stands, so nobody waits on a button that would be refused. */}
     <p id="submit-note" hidden class="text-sm text-slate-600"></p>
   </form>
+
+  {/* Venue lifecycle (Decision 6.140). Closing is immediate and reversible for
+      a grace window; the archive at the end of it is not. Both live outside the
+      draft form: a closed venue is a business decision, not a submission, and
+      it stays available while a draft is with the review team. */}
+  <p id="lifecycle-note" hidden class="mt-8 rounded-lg border p-4 text-sm"></p>
+
+  <section id="retired-section" hidden class="mt-10">
+    <h2 class="text-sm font-semibold">Closed locations</h2>
+    <p class="mt-1 text-xs text-slate-500">
+      A closed location keeps everything it had for <span id="retired-grace">30</span> days, so reopening
+      brings back its card, its members, and its printed codes. After that window its member list is
+      cleared and the location is archived, which cannot be undone.
+    </p>
+    <div id="retired-list" class="mt-3 space-y-3"></div>
+  </section>
+
+  {/* Step one of the two-step close: everything preview_partner_location_retire
+      reports, before anything happens. Step two is the confirm on the button. */}
+  <div id="retire-overlay" hidden class="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/40 p-4">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="retire-title"
+      class="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl border border-slate-200 bg-white p-6 shadow-xl"
+    >
+      <h2 id="retire-title" class="text-base font-semibold">Close this location</h2>
+      <p id="retire-sub" class="mt-1 text-xs text-slate-500"></p>
+
+      <p class="mt-4 text-sm text-slate-700">Closing a location does three things:</p>
+      <ul class="mt-2 list-disc space-y-2 pl-5 text-sm text-slate-700">
+        <li>
+          The lobby screen goes dark now. Its current link stops working, and reopening does not bring
+          that link back, so a fresh one is created for the screen.
+        </li>
+        <li>
+          Printed codes stop working now. Posters, tent cards, and any QR already in the wild send people
+          to a page saying the location is closed, instead of to your welcome perk.
+        </li>
+        <li>
+          After <span id="retire-grace">30</span> days the member list is cleared, and that part cannot be
+          undone. Until then, reopening restores it.
+        </li>
+      </ul>
+
+      <div id="retire-facts" class="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700"></div>
+      <div id="retire-warnings" hidden class="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900"></div>
+
+      <div class="mt-4">
+        <label for="retire-reason" class="block text-sm font-medium">Reason (optional)</label>
+        <input
+          id="retire-reason"
+          type="text"
+          placeholder="Lease ended, moved to the North venue…"
+          class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+        />
+        <p class="mt-1 text-xs text-slate-500">
+          <span id="retire-reason-count"></span> · kept with your records, and shown here while the location is closed.
+        </p>
+      </div>
+
+      <p id="retire-error" hidden class="mt-3 text-sm text-rose-700"></p>
+
+      <div class="mt-5 flex flex-wrap gap-3">
+        <button
+          type="button"
+          id="retire-cancel"
+          class="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium hover:bg-slate-100"
+        >
+          Keep it open
+        </button>
+        <button
+          type="button"
+          id="retire-go"
+          class="rounded-md bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-500 disabled:opacity-50"
+        >
+          Close this location
+        </button>
+      </div>
+    </div>
+  </div>
 </Portal>
 
 <script>
-  import { cacheRole, el, requireSession, rpc, show, STALE_DRAFT_TEXT, submitBlockText, toast } from '../lib/portal';
+  import {
+    cacheRole,
+    el,
+    fmtDate,
+    requireSession,
+    retireStatusText,
+    rpc,
+    show,
+    STALE_DRAFT_TEXT,
+    submitBlockText,
+    toast,
+  } from '../lib/portal';
 
   interface Perk {
     title: string | null;
@@ -87,8 +179,44 @@ import Portal from '../layouts/Portal.astro';
     perks: Perk[];
   }
 
+  // One closed venue as get_my_partner_brand().retired_locations reports it
+  // (Decision 6.140). Present until the sweep archives it at archive_due_at.
+  interface RetiredLocation {
+    code_id: string;
+    code: string;
+    label: string | null;
+    address: string | null;
+    retired_at: string | null;
+    retire_reason: string | null;
+    archive_due_at: string | null;
+  }
+
+  // preview_partner_location_retire: what closing WOULD do, read-only, with
+  // the same authorization as the close itself.
+  interface RetirePreview {
+    status: string;
+    label?: string | null;
+    code?: string;
+    grace_days?: number;
+    archive_due_at?: string | null;
+    member_count?: number;
+    pending_count?: number;
+    snapshot_rows?: number;
+    venue_perks?: number;
+    draft_entries?: number;
+    draft_in_review?: boolean;
+    logins_without_active_venue?: Array<{ contact_name: string | null; status: string }>;
+    is_last_active_venue?: boolean;
+  }
+
   let limits: Record<string, number> = {};
   let inReview = false;
+  // can_retire_location (brand admin). Presentation only: the server refuses a
+  // manager's call either way, and this only keeps a doomed button off screen.
+  let canRetire = false;
+  let graceDays = 30;
+  // The venue the open confirm is about, so the close acts on what was previewed.
+  let retireTarget: { code_id: string; name: string; dueAt: string | null } | null = null;
   let liveByCode = new Map<string, LiveLocation>();
   // The draft's concurrency token: null when the brand has no open draft.
   let expectedUpdatedAt: string | null = null;
@@ -147,6 +275,7 @@ import Portal from '../layouts/Portal.astro';
         </div>
         <div class="flex shrink-0 items-center gap-3">
           ${live ? '<button type="button" data-discard hidden class="text-sm text-slate-400 hover:text-rose-600">Discard staged change</button>' : ''}
+          ${live && canRetire ? '<button type="button" data-retire class="text-sm text-slate-500 hover:text-rose-600">Close this location</button>' : ''}
           ${live ? '' : '<button type="button" data-remove class="text-sm text-slate-400 hover:text-rose-600">Remove</button>'}
         </div>
       </div>
@@ -228,6 +357,12 @@ import Portal from '../layouts/Portal.astro';
       if (card.dataset.entryId) removedEntryIds.push(card.dataset.entryId);
       card.remove();
     });
+
+    // Closing the venue (Decision 6.140). Never a draft action: it acts on the
+    // live venue straight away, so it sits outside the save flow entirely.
+    if (live) {
+      card.querySelector('[data-retire]')?.addEventListener('click', () => void openRetire(live));
+    }
 
     // A live venue with a staged change can go back to what is live today.
     const discard = card.querySelector('[data-discard]') as HTMLButtonElement | null;
@@ -424,8 +559,236 @@ import Portal from '../layouts/Portal.astro';
     el<HTMLButtonElement>('loc-add').disabled = !enabled;
     for (const field of el('listing-form').querySelectorAll<HTMLInputElement | HTMLButtonElement>('input, button')) {
       if (field.id === 'btn-save' || field.id === 'btn-submit' || field.id === 'loc-add') continue;
+      // Closing a location is not part of the submission, so a draft sitting
+      // with the review team never holds it up (Decision 6.140).
+      if (field.hasAttribute('data-retire')) continue;
       field.disabled = !enabled;
     }
+  }
+
+  // -------------------------------------------------------------------------
+  // Venue lifecycle (Decision 6.140): close, and reopen during the grace
+  // window. Brand admin only, which the SERVER decides: can_retire_location
+  // only keeps a button that would be refused off the screen.
+  // -------------------------------------------------------------------------
+
+  const venueName = (l: { label: string | null; address: string | null; code: string }): string =>
+    l.label ?? l.address ?? l.code;
+
+  function lifecycleNote(kind: 'info' | 'warn' | 'good', text: string): HTMLElement {
+    const node = el('lifecycle-note');
+    node.hidden = false;
+    node.className = `mt-8 rounded-lg border p-4 text-sm ${
+      kind === 'warn'
+        ? 'border-amber-300 bg-amber-50 text-amber-900'
+        : kind === 'good'
+          ? 'border-emerald-300 bg-emerald-50 text-emerald-900'
+          : 'border-slate-200 bg-white text-slate-700'
+    }`;
+    node.textContent = `${text} `;
+    node.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    return node;
+  }
+
+  const RAISED_TEXT =
+    'That did not go through, so nothing changed. Reload the page and try again. If this login has been suspended, the FitCreature team can help.';
+
+  /**
+   * One lifecycle write. Either a payload or a reason to show, never both, and
+   * the CALLER decides where the reason lands: a refusal while the confirm
+   * panel is open belongs in the panel, not on the page behind it. retire and
+   * reopen answer a manager, an unknown venue and a wrong state with SOFT
+   * statuses, but RAISE for a signed-out, non-partner or SUSPENDED login, so a
+   * thrown error is an outcome here rather than only a transport failure.
+   * Nothing is changed in either case.
+   */
+  async function lifecycleCall(
+    fn: string,
+    args: Record<string, unknown>,
+  ): Promise<{ res: Record<string, any> | null; message: string | null }> {
+    let res: Record<string, any>;
+    try {
+      res = await rpc<Record<string, any>>(fn, args);
+    } catch {
+      return { res: null, message: RAISED_TEXT };
+    }
+    if (res.status === 'ok') return { res, message: null };
+    return { res: null, message: retireStatusText(res.status) };
+  }
+
+  function closeRetireOverlay(): void {
+    retireTarget = null;
+    show('retire-overlay', false);
+  }
+
+  function line(parent: HTMLElement, text: string): void {
+    const p = document.createElement('p');
+    p.className = parent.childElementCount === 0 ? '' : 'mt-2';
+    p.textContent = text;
+    parent.appendChild(p);
+  }
+
+  // Step one of two: everything the close would do, read from the server
+  // before anything happens.
+  async function openRetire(live: LiveLocation): Promise<void> {
+    let preview: RetirePreview;
+    try {
+      preview = await rpc<RetirePreview>('preview_partner_location_retire', { p_code_id: live.code_id });
+    } catch {
+      lifecycleNote(
+        'warn',
+        'Could not check what closing this location would do, so nothing changed. Reload the page and try again.',
+      );
+      return;
+    }
+    if (preview.status !== 'ok') {
+      lifecycleNote('warn', retireStatusText(preview.status));
+      return;
+    }
+
+    const name = venueName(live);
+    retireTarget = { code_id: live.code_id, name, dueAt: preview.archive_due_at ?? null };
+    el('retire-title').textContent = `Close ${name}?`;
+    el('retire-sub').textContent = `${live.code}${live.address ? ` · ${live.address}` : ''}`;
+    el('retire-grace').textContent = String(preview.grace_days ?? graceDays);
+
+    const facts = el('retire-facts');
+    facts.innerHTML = '';
+    const members = Number(preview.member_count ?? 0);
+    const pending = Number(preview.pending_count ?? 0);
+    line(
+      facts,
+      members === 0
+        ? 'No members are on this location today.'
+        : members === 1
+          ? '1 member is on this location today, and their friendship is kept for the whole window.'
+          : `${members} members are on this location today, and their friendships are kept for the whole window.`,
+    );
+    if (pending > 0) {
+      line(facts, pending === 1 ? '1 join request is waiting and stops here.' : `${pending} join requests are waiting and stop here.`);
+    }
+    const perks = Number(preview.venue_perks ?? 0);
+    if (perks > 0) {
+      line(facts, perks === 1 ? '1 perk at this location stops showing on your card.' : `${perks} perks at this location stop showing on your card.`);
+    }
+    if (Number(preview.draft_entries ?? 0) > 0) {
+      line(facts, 'A staged change for this location is in your current draft, and it comes out of the draft. Everything else you have staged stays.');
+    }
+    if (preview.draft_in_review === true) {
+      line(facts, 'A submission that includes this location is with the FitCreature team right now, so they will come back to you about it.');
+    }
+    line(
+      facts,
+      preview.archive_due_at
+        ? `Reopening is available until ${fmtDate(preview.archive_due_at)}. On that date the member list is cleared.`
+        : 'Reopening is available until the grace window ends, when the member list is cleared.',
+    );
+
+    // The two consequences a partner is least likely to have thought about.
+    const warnings = el('retire-warnings');
+    warnings.innerHTML = '';
+    if (preview.is_last_active_venue === true) {
+      line(warnings, 'This is your only open location, so with it closed players no longer see a venue on your card.');
+    }
+    const stranded = preview.logins_without_active_venue ?? [];
+    if (stranded.length > 0) {
+      const who = stranded.map((s) => s.contact_name ?? 'an unnamed login').join(', ');
+      line(
+        warnings,
+        stranded.length === 1
+          ? `${who} would be left with no open location. That login can still sign in, and its pages fill up again once a location reopens or another is assigned.`
+          : `These logins would be left with no open location: ${who}. They can still sign in, and their pages fill up again once a location reopens or another is assigned.`,
+      );
+    }
+    warnings.hidden = warnings.childElementCount === 0;
+
+    const reason = el<HTMLInputElement>('retire-reason');
+    reason.value = '';
+    reason.maxLength = limits.retire_reason ?? 200;
+    const count = el('retire-reason-count');
+    const paintCount = () => {
+      count.textContent = `${reason.value.length}/${limits.retire_reason ?? 200} characters`;
+    };
+    reason.oninput = paintCount;
+    paintCount();
+
+    show('retire-error', false);
+    show('retire-overlay', true);
+    reason.focus();
+  }
+
+  function renderRetired(list: RetiredLocation[]): void {
+    const wrap = el('retired-list');
+    wrap.innerHTML = '';
+    for (const loc of list) {
+      const card = document.createElement('article');
+      card.className = 'flex flex-wrap items-start justify-between gap-3 rounded-lg border border-slate-200 bg-white p-4';
+
+      const who = document.createElement('div');
+      const name = document.createElement('p');
+      name.className = 'text-sm font-semibold';
+      name.textContent = venueName(loc);
+      who.appendChild(name);
+
+      const meta = document.createElement('p');
+      meta.className = 'text-xs text-slate-500';
+      meta.textContent =
+        `${loc.code}${loc.address ? ` · ${loc.address}` : ''}` +
+        (loc.retired_at ? ` · closed ${fmtDate(loc.retired_at)}` : '');
+      who.appendChild(meta);
+
+      if (loc.retire_reason) {
+        const reason = document.createElement('p');
+        reason.className = 'mt-1 text-xs text-slate-500';
+        reason.textContent = `Reason: ${loc.retire_reason}`;
+        who.appendChild(reason);
+      }
+
+      const due = document.createElement('p');
+      due.className = 'mt-2 text-xs text-amber-800';
+      due.textContent = loc.archive_due_at
+        ? `Archived on ${fmtDate(loc.archive_due_at)}, when the member list is cleared. Reopening is available until then.`
+        : 'Reopening is available until the grace window ends.';
+      who.appendChild(due);
+      card.appendChild(who);
+
+      if (canRetire) {
+        const reopen = document.createElement('button');
+        reopen.type = 'button';
+        reopen.className = 'shrink-0 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium hover:bg-slate-100';
+        reopen.textContent = 'Reopen';
+        reopen.addEventListener('click', async () => {
+          reopen.disabled = true;
+          const { res, message } = await lifecycleCall('reopen_partner_location', { p_code_id: loc.code_id });
+          if (!res) {
+            reopen.disabled = false;
+            lifecycleNote('warn', message ?? RAISED_TEXT);
+            return;
+          }
+          await load();
+          // reopen_partner_location deliberately leaves the screen token NULL:
+          // a link printed on a card in a closed lobby must not resume working.
+          const note = lifecycleNote(
+            'good',
+            `${venueName(loc)} is open again, with its card, its members, and its printed codes back. Its lobby-screen link was not restored, so a fresh one is waiting to be created before the screen goes back on a TV.`,
+          );
+          const link = document.createElement('a');
+          link.href = '/screen';
+          link.className = 'font-medium underline';
+          link.textContent = 'Open Lobby screen';
+          note.appendChild(link);
+        });
+        card.appendChild(reopen);
+      } else {
+        const byBrand = document.createElement('p');
+        byBrand.className = 'shrink-0 text-xs text-slate-500';
+        byBrand.textContent = 'A brand login reopens a location.';
+        card.appendChild(byBrand);
+      }
+
+      wrap.appendChild(card);
+    }
+    show('retired-section', list.length > 0);
   }
 
   async function load(): Promise<void> {
@@ -442,6 +805,14 @@ import Portal from '../layouts/Portal.astro';
     limits = brand.field_limits ?? {};
     CODE_TEXT.max_perks = `can hold up to ${limits.max_perks ?? 5} perks`;
     cacheRole(brand.role);
+
+    // Lifecycle flags, read before the cards are built so a card knows whether
+    // it carries a close control (Decision 6.140).
+    canRetire = brand.can_retire_location === true;
+    graceDays = Number(brand.retire_grace_days ?? 30);
+    el('retire-grace').textContent = String(graceDays);
+    el('retired-grace').textContent = String(graceDays);
+    renderRetired((brand.retired_locations ?? []) as RetiredLocation[]);
 
     const live = (brand.live ?? {}) as Record<string, any>;
     const draft = (brand.draft ?? null) as Record<string, any> | null;
@@ -548,6 +919,59 @@ import Portal from '../layouts/Portal.astro';
     setEditing(!inReview);
     if (!inReview && blocked) el<HTMLButtonElement>('btn-submit').disabled = true;
   }
+
+  el('retire-cancel').addEventListener('click', closeRetireOverlay);
+  el('retire-overlay').addEventListener('click', (e) => {
+    if (e.target === el('retire-overlay')) closeRetireOverlay();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !el('retire-overlay').hidden) closeRetireOverlay();
+  });
+
+  // Step two of two. The panel above has already named every consequence; this
+  // is the last chance to step back before the screen and the printed codes go.
+  el('retire-go').addEventListener('click', async () => {
+    if (!retireTarget) return;
+    const target = retireTarget;
+    const until = target.dueAt ? ` Reopening stays available until ${fmtDate(target.dueAt)}.` : '';
+    if (
+      !confirm(
+        `Close ${target.name}? The lobby screen and every printed code stop working right away.${until}`,
+      )
+    ) {
+      return;
+    }
+    const go = el<HTMLButtonElement>('retire-go');
+    go.disabled = true;
+    show('retire-error', false);
+    const reason = el<HTMLInputElement>('retire-reason').value.trim();
+    let outcome: { res: Record<string, any> | null; message: string | null };
+    try {
+      outcome = await lifecycleCall('retire_partner_location', {
+        p_code_id: target.code_id,
+        p_reason: reason === '' ? null : reason,
+      });
+    } finally {
+      go.disabled = false;
+    }
+    const res = outcome.res;
+    if (!res) {
+      // The panel is still up, so the reason belongs inside it.
+      const error = el('retire-error');
+      error.textContent = outcome.message ?? RAISED_TEXT;
+      error.hidden = false;
+      return;
+    }
+    closeRetireOverlay();
+    await load();
+    lifecycleNote(
+      'good',
+      `${target.name} is closed. Its lobby screen and its printed codes stopped working just now.` +
+        (res.archive_due_at
+          ? ` It stays here, ready to reopen, until ${fmtDate(res.archive_due_at)}.`
+          : ' It stays here, ready to reopen, until the grace window ends.'),
+    );
+  });
 
   el('loc-add').addEventListener('click', () => {
     const max = limits.max_draft_locations ?? 50;

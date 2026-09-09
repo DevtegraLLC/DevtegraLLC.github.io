@@ -62,6 +62,7 @@ import Portal from '../layouts/Portal.astro';
     fmtDate,
     loadLocations,
     mountLocationSelector,
+    noLocationText,
     creatureStill,
     type PartnerLocation,
   } from '../lib/portal';
@@ -224,7 +225,7 @@ import Portal from '../layouts/Portal.astro';
     if (!active) {
       show('m-loading', false);
       const err = el('m-error');
-      err.textContent = 'No locations are attached to this account yet.';
+      err.textContent = noLocationText(locations);
       err.hidden = false;
       return;
     }

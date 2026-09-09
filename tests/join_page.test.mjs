@@ -1,7 +1,7 @@
 // ===========================================================================
-// join_page.test.mjs — /join landing-page state machine.
+// join_page.test.mjs: /join landing-page state machine.
 //
-//   npm test        (runs `astro build` first — this reads the BUILT page)
+//   npm test        (runs `astro build` first, which reads the BUILT page)
 //
 // The page renders a neutral "you've got a code" state for any well-formed
 // ?ref, then the ref_scan answer resolves it. The invariant worth guarding:
@@ -9,7 +9,7 @@
 // an endpoint FAILURE must not downgrade a real one. Both directions are
 // asserted below, plus the user / promo / partner framings.
 //
-// Runs the built page's inline script against a minimal DOM shim — no
+// Runs the built page's inline script against a minimal DOM shim: no
 // browser, no dependencies.
 // ===========================================================================
 
@@ -31,10 +31,12 @@ function makeEnv(refValue, scanResult) {
   const els = {};
   for (const id of ['join-generic','join-referred','join-code','join-copy','join-copied',
                     'join-headline','join-blurb','join-partner-logo',
-                    'join-unknown-note','join-unknown-code']) {
+                    'join-unknown-note','join-unknown-code',
+                    'join-closed','join-closed-logo','join-closed-headline','join-closed-label']) {
     // Mirror the markup's initial hidden state, so an assertion about a
     // block staying hidden is a real assertion.
-    const initiallyHidden = ['join-referred','join-copied','join-partner-logo','join-unknown-note'];
+    const initiallyHidden = ['join-referred','join-copied','join-partner-logo','join-unknown-note',
+                             'join-closed','join-closed-logo','join-closed-label'];
     els[id] = { id, hidden: initiallyHidden.includes(id), textContent: '', src: '', alt: '',
                 addEventListener() {} };
   }
@@ -97,5 +99,25 @@ check('failure: no unknown note', e['join-unknown-note'].hidden === true, 'note 
 // 6. No ref at all -> nothing touched.
 e = await run('', { ok: true, status: 'unknown' });
 check('no ref: referred block stays hidden', e['join-referred'].hidden === true && e['join-code'].textContent === '', '');
+
+// 7. Retired partner venue (Decision 6.140) -> the named closed panel, NOT
+// the "we couldn't find the code" note: the code is real and the person
+// holding the poster did nothing wrong.
+e = await run('EASTLIFT', { ok: true, status: 'location_closed', code_type: 'partner',
+  partner_name: 'Eastside Lifting', partner_label: 'Downtown', partner_logo_url: 'https://x/logo.png' });
+check('closed: closed block shown', e['join-closed'].hidden === false, '');
+check('closed: referred block hidden', e['join-referred'].hidden === true, '');
+check('closed: generic block hidden', e['join-generic'].hidden === true, '');
+check('closed: named headline', e['join-closed-headline'].textContent === 'Eastside Lifting has closed this location.', e['join-closed-headline'].textContent);
+check('closed: venue label shown', e['join-closed-label'].hidden === false && e['join-closed-label'].textContent === 'Downtown', e['join-closed-label'].textContent);
+check('closed: brand logo shown', e['join-closed-logo'].hidden === false && e['join-closed-logo'].src === 'https://x/logo.png', e['join-closed-logo'].src);
+check('closed: unknown note stays hidden', e['join-unknown-note'].hidden === true, 'note leaked');
+
+// 8. Closed with no branding on the answer -> the panel still stands on its
+// own markup copy, and nothing is invented.
+e = await run('EASTLIFT', { ok: true, status: 'location_closed', code_type: 'partner' });
+check('closed, unnamed: closed block shown', e['join-closed'].hidden === false, '');
+check('closed, unnamed: headline untouched', e['join-closed-headline'].textContent === '', e['join-closed-headline'].textContent);
+check('closed, unnamed: no logo', e['join-closed-logo'].hidden === true, 'logo leaked');
 
 process.exit(failures ? 1 : 0);

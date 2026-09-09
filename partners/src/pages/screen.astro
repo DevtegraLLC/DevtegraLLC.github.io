@@ -99,6 +99,7 @@ import Portal from '../layouts/Portal.astro';
     fmtDay,
     loadLocations,
     mountLocationSelector,
+    noLocationText,
     displayUrl,
     creatureStill,
     type PartnerLocation,
@@ -239,7 +240,7 @@ import Portal from '../layouts/Portal.astro';
     if (!active) {
       show('s-loading', false);
       const err = el('s-error');
-      err.textContent = 'No locations are attached to this account yet.';
+      err.textContent = noLocationText(locations);
       err.hidden = false;
       return;
     }

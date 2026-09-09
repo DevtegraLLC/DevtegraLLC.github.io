@@ -5,7 +5,7 @@ import Base from '../layouts/Base.astro';
 //
 // This URL is the PERMANENT payload of every referral QR baked into shared
 // images (evolution/battle clips, workout + streak cards, progress photos)
-// and shown on the in-app Refer tab. The scheme — /join?ref=<8-char code> —
+// and shown on the in-app Refer tab. The scheme (/join?ref=<8-char code>)
 // must never change: QRs already posted in the wild can't be reprinted. The
 // page CONTENT is free to evolve (beta signup today; App Store / Google Play
 // badges + install-referrer links at launch; partner-branded variants later).
@@ -17,7 +17,7 @@ import Base from '../layouts/Base.astro';
 // {partner_name, partner_logo_url} that upgrades the headline in place. Any
 // failure of that call costs a count + branding, never the page.
 //
-// Codes are 8 uppercase alphanumerics — wider than the generated-code
+// Codes are 8 uppercase alphanumerics, wider than the generated-code
 // alphabet on purpose: hand-assigned partner/promo codes may use 0/O/1/I/L.
 const SCAN_ENDPOINT =
   import.meta.env.PUBLIC_REF_SCAN_URL ||
@@ -60,6 +60,27 @@ const SCAN_ENDPOINT =
           </button>
           <p id="join-copied" class="mt-3 text-sm font-medium text-emerald-600" hidden>Copied. Keep it handy for signup.</p>
         </div>
+      </div>
+
+      {/* Closed-venue state (a partner code whose location has retired,
+          Decision 6.140 in the app repo). The code is real and the scan is
+          counted; there is simply nothing behind it any more, so this says so
+          by name instead of blaming the code the way 'unknown' does. An
+          ARCHIVED venue deliberately reads as 'unknown' instead. */}
+      <div id="join-closed" hidden>
+        <img id="join-closed-logo" src="" alt="" width="72" height="72" class="mx-auto mt-6 rounded-xl" hidden />
+        <h1 id="join-closed-headline" class="mt-8 text-4xl font-bold tracking-tight text-slate-900">
+          This location has closed.
+        </h1>
+        <p id="join-closed-label" hidden class="mt-2 text-sm font-medium text-slate-500"></p>
+        <p class="mt-4 leading-relaxed text-slate-600">
+          The code on this poster belonged to a FitCreature partner location that is no longer running
+          the program, so there is no welcome perk behind it. Nothing went wrong on your end.
+        </p>
+        <p class="mt-4 leading-relaxed text-slate-600">
+          FitCreature is the fitness RPG where every real workout shapes an evolving creature. It is open
+          to everyone, with or without a code, and you are welcome to grab it below.
+        </p>
       </div>
 
       {/* Generic state (no or malformed ?ref) */}
@@ -113,7 +134,7 @@ const SCAN_ENDPOINT =
 </Base>
 
 <script define:vars={{ SCAN_ENDPOINT }}>
-  // 8 uppercase alphanumerics — wider than the generated-code alphabet on
+  // 8 uppercase alphanumerics, wider than the generated-code alphabet on
   // purpose (hand-assigned partner/promo codes may use 0/O/1/I/L).
   const CODE_RE = /^[A-Z0-9]{8}$/;
 
@@ -132,7 +153,7 @@ const SCAN_ENDPOINT =
         await navigator.clipboard.writeText(code);
         document.getElementById('join-copied').hidden = false;
       } catch {
-        // Clipboard can be unavailable (permissions, old browsers) — the
+        // Clipboard can be unavailable (permissions, old browsers): the
         // code stays visible on screen either way.
       }
     });
@@ -140,9 +161,11 @@ const SCAN_ENDPOINT =
     // Scan log fired AFTER render. The page renders a neutral "you've got a
     // code" state that stays true whatever the answer is, then this call
     // resolves it in place: a user code becomes the invite framing, a promo
-    // the campaign framing, a partner their branding, and a code the server
-    // does NOT know (status 'unknown') drops back to the generic join page
-    // with a note — a made-up ?ref must never read as a real invitation.
+    // the campaign framing, a partner their branding, a partner whose location
+    // has closed (status 'location_closed') a named closed panel, and a code
+    // the server does NOT know (status 'unknown') drops back to the generic
+    // join page with a note: a made-up ?ref must never read as a real
+    // invitation.
     //
     // ONLY an explicit 'unknown' downgrades. Any failure (offline, rate
     // limited, endpoint down, malformed answer) leaves the neutral state
@@ -167,6 +190,33 @@ const SCAN_ENDPOINT =
           document.getElementById('join-unknown-code').textContent = code;
           document.getElementById('join-unknown-note').hidden = false;
           document.getElementById('join-generic').hidden = false;
+          return;
+        }
+        if (data.status === 'location_closed') {
+          // A REAL partner code whose location has closed (Decision 6.140).
+          // The scan still counted server-side, which is the point: posters in
+          // a closed lobby are still pulling traffic. Only the framing changes,
+          // and it names the business rather than blaming the code, because
+          // the person holding this poster did nothing wrong. An ARCHIVED
+          // venue answers 'unknown' and lands in the branch above instead.
+          document.getElementById('join-referred').hidden = true;
+          document.getElementById('join-generic').hidden = true;
+          if (typeof data.partner_name === 'string' && data.partner_name.length > 0) {
+            document.getElementById('join-closed-headline').textContent =
+              `${data.partner_name} has closed this location.`;
+          }
+          if (typeof data.partner_label === 'string' && data.partner_label.length > 0) {
+            const label = document.getElementById('join-closed-label');
+            label.textContent = data.partner_label;
+            label.hidden = false;
+          }
+          if (typeof data.partner_logo_url === 'string' && data.partner_logo_url.startsWith('https://')) {
+            const logo = document.getElementById('join-closed-logo');
+            logo.src = data.partner_logo_url;
+            logo.alt = typeof data.partner_name === 'string' ? `${data.partner_name} logo` : 'Partner logo';
+            logo.hidden = false;
+          }
+          document.getElementById('join-closed').hidden = false;
           return;
         }
         if (data.status !== 'ok') return;
@@ -205,7 +255,7 @@ const SCAN_ENDPOINT =
         }
       })
       .catch(() => {
-        // Count + branding lost, page unaffected — deliberately silent.
+        // Count + branding lost, page unaffected, deliberately silent.
       });
   }
 </script>

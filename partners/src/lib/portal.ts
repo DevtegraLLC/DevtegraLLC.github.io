@@ -222,6 +222,29 @@ export function teamStatusText(status: unknown): string {
 }
 
 /**
+ * Venue lifecycle outcomes (Decision 6.140), said as what to do next rather
+ * than as a code. retire_partner_location and reopen_partner_location return
+ * these as SOFT statuses; unauthorized, not-a-partner and suspended RAISE
+ * instead (partner_assert_active), so a caller handles a thrown error too.
+ */
+const RETIRE_STATUS_TEXT: Record<string, string> = {
+  forbidden_brand:
+    'Closing or reopening a location is done by a brand login. Your login covers the venues assigned to it.',
+  unknown_location: 'That venue is no longer part of your brand. Reload for the current list.',
+  already_retired: 'That venue is already closed. It is listed under Closed locations, where it can be reopened.',
+  archived:
+    'That venue has passed its grace window and been archived, so it cannot be reopened. A new venue can be added instead.',
+  not_retired: 'That venue is open, so there is nothing to reopen. Reload for the current list.',
+  reason_too_long: 'That note is longer than the limit. Shorten it and try again.',
+  suspended: 'This login is suspended, so it cannot make changes. Reach out to the FitCreature team.',
+};
+
+export function retireStatusText(status: unknown): string {
+  const key = String(status ?? '');
+  return RETIRE_STATUS_TEXT[key] ?? `That did not go through (${key || 'unknown'}). Reload and try again.`;
+}
+
+/**
  * Why this login cannot send the submission as it stands
  * (partner_draft_submit_block). NULL means it can.
  */
@@ -263,6 +286,14 @@ export interface PartnerLocation {
   address: string | null;
   is_default: boolean;
   is_active: boolean;
+  // Decision 6.140. 'active' is the normal venue. 'retired' is closed: it
+  // still arrives here so the portal can show it and offer Reopen, but every
+  // per-location RPC refuses it, so it is never selectable. 'archived' venues
+  // are not returned at all.
+  partner_status: 'active' | 'retired' | 'archived';
+  retired_at: string | null;
+  retire_reason: string | null;
+  archive_due_at: string | null;
   via_role: PartnerRole;
   listing_published: boolean;
   display_enabled: boolean;
@@ -279,7 +310,25 @@ export interface LocationsState {
   role?: PartnerRole;
   default_code_id?: string | null;
   agreements_current?: boolean;
+  retire_grace_days?: number;
+  active_location_count?: number;
   locations?: PartnerLocation[];
+}
+
+/** Closed venues come back alongside open ones; only the open ones are usable. */
+export function isOpenLocation(l: PartnerLocation): boolean {
+  return l.partner_status !== 'retired' && l.partner_status !== 'archived';
+}
+
+/**
+ * What a per-location page says when the selector has nothing to act on. A
+ * login whose only venues are CLOSED is not a login with no venues, and saying
+ * so points at the one page that can do something about it.
+ */
+export function noLocationText(locations: PartnerLocation[]): string {
+  return locations.some((l) => !isOpenLocation(l))
+    ? 'Every location this login covers is closed right now. A brand login can reopen one under Locations.'
+    : 'No locations are attached to this account yet.';
 }
 
 const LOCATION_KEY = 'fc_location';
@@ -288,16 +337,22 @@ export function loadLocations(): Promise<LocationsState> {
   return rpc<LocationsState>('get_my_partner_locations');
 }
 
-/** The remembered location if the login still reaches it, else its default. */
+/**
+ * The remembered location if the login still reaches it and it is open, else
+ * its default, else the first open one. A closed venue is never picked: every
+ * per-location RPC refuses it (Decision 6.140), so landing on one would put
+ * the page on a venue the server will not answer for.
+ */
 export function pickLocation(locations: PartnerLocation[]): PartnerLocation | null {
-  if (locations.length === 0) return null;
+  const open = locations.filter(isOpenLocation);
+  if (open.length === 0) return null;
   let remembered: string | null = null;
   try {
     remembered = localStorage.getItem(LOCATION_KEY);
   } catch {
     remembered = null;
   }
-  return locations.find((l) => l.code_id === remembered) ?? locations.find((l) => l.is_default) ?? locations[0];
+  return open.find((l) => l.code_id === remembered) ?? open.find((l) => l.is_default) ?? open[0];
 }
 
 export function rememberLocation(codeId: string): void {
@@ -318,6 +373,11 @@ export function locationLabel(l: PartnerLocation): string {
  * Fill the `<select id>` with the login's locations and return the active
  * one. A single-location login sees no selector (the wrapper is hidden);
  * `onChange` fires with the newly selected location after it is remembered.
+ *
+ * Decision 6.140: closed venues still arrive in the list, so they are grouped
+ * under a DISABLED "Closed" group rather than dropped. Listing them says why a
+ * venue vanished from the switcher; disabling them means the page never sends
+ * a code every per-location RPC refuses.
  */
 export function mountLocationSelector(
   selectId: string,
@@ -325,19 +385,43 @@ export function mountLocationSelector(
   locations: PartnerLocation[],
   onChange: (l: PartnerLocation) => void,
 ): PartnerLocation | null {
+  const open = locations.filter(isOpenLocation);
+  const closed = locations.filter((l) => !isOpenLocation(l));
   const active = pickLocation(locations);
   const select = el<HTMLSelectElement>(selectId);
   select.innerHTML = '';
-  for (const l of locations) {
+
+  if (open.length === 0) {
+    const none = document.createElement('option');
+    none.textContent = 'No open locations';
+    none.disabled = true;
+    none.selected = true;
+    select.appendChild(none);
+  }
+  for (const l of open) {
     const opt = document.createElement('option');
     opt.value = l.code_id;
     opt.textContent = locationLabel(l);
     opt.selected = active?.code_id === l.code_id;
     select.appendChild(opt);
   }
-  show(wrapId, locations.length > 1);
+  if (closed.length > 0) {
+    const group = document.createElement('optgroup');
+    group.label = 'Closed';
+    group.disabled = true;
+    for (const l of closed) {
+      const opt = document.createElement('option');
+      opt.value = l.code_id;
+      opt.textContent = locationLabel(l);
+      opt.disabled = true;
+      group.appendChild(opt);
+    }
+    select.appendChild(group);
+  }
+
+  show(wrapId, open.length > 1 || closed.length > 0);
   select.onchange = () => {
-    const next = locations.find((l) => l.code_id === select.value);
+    const next = open.find((l) => l.code_id === select.value);
     if (!next) return;
     rememberLocation(next.code_id);
     onChange(next);

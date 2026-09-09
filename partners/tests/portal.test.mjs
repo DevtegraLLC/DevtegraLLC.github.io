@@ -108,6 +108,18 @@ for (const needle of [
   'p_expected_updated_at',
   'p_remove_entry_ids',
   'entry_id',
+  // Decision 6.140: the venue retire lifecycle
+  'preview_partner_location_retire',
+  'retire_partner_location',
+  'reopen_partner_location',
+  'can_retire_location',
+  'retired_locations',
+  'retire_grace_days',
+  'archive_due_at',
+  'logins_without_active_venue',
+  'is_last_active_venue',
+  'partner_status',
+  'p_reason',
 ]) {
   ok(all.includes(needle), `wired: ${needle}`);
 }
@@ -124,6 +136,13 @@ for (const gone of [
   'admin_attach_partner_location',
   'partner_account_codes',
   'is_primary',
+  // Decision 6.140: referral_codes.is_active is a DERIVED MIRROR of
+  // partner_status, and a direct UPDATE of it RAISES. Nothing in the portal
+  // may reach for the table, let alone the flag.
+  'referral_codes',
+  // The hard teardown is internal (sweep + operator break-glass), never a
+  // partner-facing control.
+  'archive_partner_location',
 ]) {
   ok(!all.includes(gone), `retired RPC absent: ${gone}`);
 }
@@ -215,6 +234,41 @@ ok(listingBundle.includes('p_expected_updated_at') && listingBundle.includes('p_
   'locations save carries the concurrency token and explicit removals');
 ok(brandBundle.includes('p_expected_updated_at'), 'brand save carries the concurrency token');
 ok(all.includes('Another login changed this submission'), 'stale save tells the partner to reload');
+
+// Decision 6.140, the venue retire lifecycle. Closing a location is a
+// brand-admin action on the Locations page, behind a two-step confirm fed by
+// preview_partner_location_retire, and closed venues get their own section
+// with a Reopen that points at a fresh screen link.
+ok(listingHtml.includes('id="retire-overlay"'), 'locations page carries the close confirm panel');
+ok(listingHtml.includes('id="retired-section"') && listingHtml.includes('id="retired-list"'),
+  'locations page carries the Closed locations section');
+ok(listingHtml.includes('Closed locations'), 'Closed locations section is named');
+for (const fn of ['preview_partner_location_retire', 'retire_partner_location', 'reopen_partner_location']) {
+  ok(listingBundle.includes(fn), `locations page calls ${fn}`);
+}
+// The confirm names all three consequences in plain language, and the two a
+// partner will not have thought about ride on the server's own answers.
+ok(listingHtml.includes('The lobby screen goes dark now'), 'confirm says the lobby screen goes dark now');
+ok(listingHtml.includes('Printed codes stop working now'), 'confirm says printed codes stop working now');
+ok(listingHtml.includes('the member list is cleared') && listingHtml.includes('cannot be'),
+  'confirm says the member list is cleared and cannot be undone');
+ok(listingBundle.includes('is_last_active_venue') && listingBundle.includes('logins_without_active_venue'),
+  'confirm surfaces the last-venue and stranded-login consequences');
+ok(listingBundle.includes('only open location'), 'last open location is spelled out');
+ok(listingBundle.includes('no open location'), 'stranded logins are spelled out');
+// Step two: the panel is not the click that closes it.
+ok(listingBundle.includes('confirm(') && listingBundle.includes('stop working right away'),
+  'closing takes a second confirm');
+// Reopen deliberately does NOT restore the screen token, so the UI says so.
+ok(listingBundle.includes('was not restored'), 'reopen points the partner at a fresh screen link');
+// Every soft status the lifecycle RPCs can return is answered with next steps.
+for (const status of ['already_retired', 'not_retired', 'reason_too_long', 'unknown_location', 'archived']) {
+  ok(all.includes(status), `lifecycle status handled: ${status}`);
+}
+// The shared selector groups closed venues under a disabled group, so the four
+// per-location pages stop silently offering a venue the server refuses.
+ok(all.includes('optgroup'), 'location selector groups closed venues');
+ok(all.includes('No open locations'), 'selector says when nothing is open');
 
 // The report page must carry the not-counted install framing (annex §9.5:
 // never present an Android-only number as a total, never estimate).

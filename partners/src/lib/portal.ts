@@ -268,6 +268,170 @@ export const STALE_DRAFT_TEXT =
   'Another login changed this submission while this page was open. Reload to pick up their version, then make your change again.';
 
 // ---------------------------------------------------------------------------
+// Notification contacts and switches (Decisions 6.141 / 6.142).
+//
+// Every notice asks two independent questions. WHERE it goes: the venue's own
+// address, else the brand's address, else the sign-in address of every active
+// brand login. WHETHER it goes: a master `notifications_enabled` switch at each
+// level, ANDed with a per-event switch.
+//
+// Three consequences the helpers below exist to render honestly:
+//   * A muted level KEEPS its address, so a venue still inherits a muted
+//     brand's inbox, and turning the BRAND off does not mute the venues.
+//   * `resolved_recipients` is an ARRAY, because the last tier is every active
+//     brand login and a brand may hold several. All of them are rendered.
+//   * `recipients_visible: false` REDACTS an inherited address rather than
+//     hiding the row: a location manager still learns where notices go, just
+//     not the brand's admin sign-in addresses. The server decided that; the
+//     portal only obeys it.
+// ---------------------------------------------------------------------------
+
+export type ContactSource = 'venue_override' | 'brand_override' | 'brand_login';
+
+/** One level's settings block, as both read RPCs return it. */
+export interface NotifySettings {
+  contact_email: string | null;
+  notifications_enabled: boolean;
+  notify_draft_approved?: boolean;
+  notify_draft_changes_requested?: boolean;
+  notify_member_join_request?: boolean;
+  /** Per event, the master ANDed in. Keyed by EVENT name, not by column name. */
+  effective: Record<string, boolean>;
+  /** The address chain for this level, never filtered by a switch. */
+  resolved_recipients: string[];
+  contact_email_source: ContactSource | null;
+  recipients_visible: boolean;
+  configured: boolean;
+  updated_at: string | null;
+  updated_by: string | null;
+}
+
+/** "a@x.example", "a@x.example and b@x.example", "a@x, b@x, and c@x". */
+export function addressList(addresses: string[]): string {
+  const list = (addresses ?? []).filter((a) => typeof a === 'string' && a.length > 0);
+  if (list.length === 0) return '';
+  if (list.length === 1) return list[0];
+  if (list.length === 2) return `${list[0]} and ${list[1]}`;
+  return `${list.slice(0, -1).join(', ')}, and ${list[list.length - 1]}`;
+}
+
+/**
+ * The sentence under an address field, naming the TIER the address came from.
+ * Every level always resolves to something, so this never renders empty and
+ * the field beside it is never the whole answer.
+ */
+export function contactSourceText(s: NotifySettings, level: 'brand' | 'venue'): string {
+  const source = s.contact_email_source;
+  // Redacted: the tier is still named, the addresses are not. At the last tier
+  // they would enumerate the brand's admin sign-in addresses, which is exactly
+  // what a location manager does not get to read.
+  if (s.recipients_visible === false) {
+    return source === 'brand_override'
+      ? 'Going to your brand address. A brand login can see it and change it.'
+      : 'Going to the sign-in address of your brand login, because nothing else is set. A brand login can set a brand address instead.';
+  }
+  const list = addressList(s.resolved_recipients ?? []);
+  if (list === '') {
+    // Only reachable for a brand with no active brand admin at all, which the
+    // keep-a-brand-admin guard prevents. Said plainly rather than left blank.
+    return level === 'brand'
+      ? 'No address resolves yet. Set one here so brand notices have somewhere to land.'
+      : 'No address resolves yet. Set one here, or set a brand address under Brand.';
+  }
+  if (source === 'venue_override') return `Going to ${list}, this location's own address.`;
+  if (source === 'brand_override') {
+    return level === 'brand'
+      ? `Going to ${list}, your brand address.`
+      : `Going to ${list}, your brand address. Set one here to use a different one.`;
+  }
+  // The last tier is a SET: every active brand login, and a brand may hold
+  // several, so all of them are named and the sentence agrees in number.
+  const many = (s.resolved_recipients ?? []).length > 1;
+  return many
+    ? `Going to ${list}, the sign-in addresses of your brand logins, because nothing else is set.`
+    : `Going to ${list}, the sign-in address of your brand login, because nothing else is set.`;
+}
+
+/** The RAW stored switch for an event, which is what a toggle renders. */
+export function rawSwitch(s: NotifySettings, event: string): boolean {
+  return (s as unknown as Record<string, unknown>)[`notify_${event}`] === true;
+}
+
+/**
+ * True when the switch is ON and the notice still is not sent, because the
+ * level's master is off. A lit toggle that silently does nothing is the state
+ * this exists to catch, so the caller keeps the switch lit AND says why.
+ */
+export function switchIsLitButOff(s: NotifySettings, event: string): boolean {
+  return rawSwitch(s, event) && s.effective?.[event] === false;
+}
+
+/** The line beside a lit-but-ineffective switch, with the master right there. */
+export function mutedEventText(level: 'brand' | 'venue'): string {
+  return level === 'brand'
+    ? 'This one is on, and notifications are off entirely for your brand right now, so it is not sending. The switch above turns them back on.'
+    : 'This one is on, and notifications are off entirely for this location right now, so it is not sending. The switch above turns them back on.';
+}
+
+/** The badge on a venue card whose master switch is off. */
+export const MUTED_BADGE_TEXT = 'Notifications off';
+
+/**
+ * Settings-write outcomes (set_partner_brand_settings /
+ * set_partner_location_settings), said as what to do next rather than as a
+ * code. Both RPCs answer every refusal with a SOFT status.
+ */
+const SETTINGS_STATUS_TEXT: Record<string, string> = {
+  nothing_to_change: 'Nothing had changed, so nothing was saved.',
+  agreements_required:
+    'Please accept the current agreements on the Overview page first, then make this change again.',
+  forbidden_brand:
+    'Brand notifications are set by a brand login. Your login covers the venues assigned to it, each with its own address and switches under Locations.',
+  forbidden_code: 'That location is not one your login covers. Reload for the current list.',
+  retired:
+    'That location is closed, so its notifications are paused. Reopening it under Closed locations brings them back, with its address kept.',
+  archived:
+    'That location has been archived, so its settings are gone. A new venue can be added under Locations.',
+  suspended: 'This login is suspended, so it cannot make changes. Reach out to the FitCreature team.',
+  not_a_partner: 'This account is not a partner account, so it has no notification settings.',
+  unauthorized: 'Your session has ended. Sign in again, then make this change.',
+};
+
+export function settingsStatusText(status: unknown): string {
+  const key = String(status ?? '');
+  return SETTINGS_STATUS_TEXT[key] ?? `That change did not go through (${key || 'unknown'}). Reload the page and try again.`;
+}
+
+/**
+ * The typed validation codes both writes return in `errors: [{field, code}]`,
+ * each said as the thing to fix. partner_email_problem is conservative on
+ * purpose, so a rejection here is a real address problem.
+ */
+const SETTINGS_CODE_TEXT: Record<string, string> = {
+  not_an_address:
+    'That address could not be read. A plain business address such as ops@yourgym.example works best.',
+  whitespace: 'That address has a space in it. Addresses carry no spaces, so take it out and try again.',
+  html: 'That address has a < or > in it. Enter the address on its own, without a name wrapped around it.',
+  zero_width:
+    'That address carries hidden characters, which usually comes from pasting. Type it out and try again.',
+  control_or_astral:
+    'That address has characters this field cannot carry. Plain letters, numbers, dots, and the usual symbols work.',
+  max_length: 'That address is longer than 254 characters. A shorter one reaches the same inbox.',
+  not_a_boolean: 'That switch could not be read. Reload the page and try the switch again.',
+  not_an_object: 'That change could not be read. Reload the page and try again.',
+};
+
+/** One readable line per typed validation error. */
+export function settingsErrorLines(errors: unknown): string[] {
+  const list = Array.isArray(errors) ? (errors as Array<Record<string, unknown>>) : [];
+  if (list.length === 0) return ['That change could not be saved. Reload the page and try again.'];
+  return list.map((e) => {
+    const code = String(e?.code ?? '');
+    return SETTINGS_CODE_TEXT[code] ?? `That change could not be saved (${code || 'unknown'}). Reload the page and try again.`;
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Locations (F92, Decisions 6.137 / 6.138 / 6.139). A partner login belongs to
 // one BRAND and reaches some of its locations (one referral code per venue):
 // every venue for a brand admin, the granted ones for a location manager. The

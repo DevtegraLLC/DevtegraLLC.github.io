@@ -270,6 +270,124 @@ for (const status of ['already_retired', 'not_retired', 'reason_too_long', 'unkn
 ok(all.includes('optgroup'), 'location selector groups closed venues');
 ok(all.includes('No open locations'), 'selector says when nothing is open');
 
+// ===========================================================================
+// Decisions 6.141 / 6.142: notification contacts, switches and routing.
+// Two independent questions per notice. WHERE it goes: venue address, else
+// brand address, else every active brand login's sign-in address. WHETHER it
+// goes: a master switch ANDed with a per-event switch. The assertions below
+// guard the three things that are easy to render wrong.
+// ===========================================================================
+for (const needle of [
+  'set_partner_brand_settings',
+  'set_partner_location_settings',
+  'can_edit_brand_settings',
+  'notifications_enabled',
+  'notify_draft_approved',
+  'notify_draft_changes_requested',
+  'notify_member_join_request',
+  'contact_email_source',
+  'resolved_recipients',
+  'recipients_visible',
+  'notification_routing',
+  'brand_settings',
+]) {
+  ok(all.includes(needle), `notifications wired: ${needle}`);
+}
+
+// 1. An address field never renders empty: every tier resolves to a sentence
+//    naming where the notice lands, and the last tier is an ARRAY of every
+//    active brand login, so the copy agrees in number.
+ok(all.includes("this location's own address"), 'venue_override source sentence');
+ok(all.includes('your brand address. Set one here to use a different one'), 'brand_override source sentence');
+ok(all.includes('the sign-in address of your brand login, because nothing else is set'),
+  'brand_login source sentence');
+ok(all.includes('the sign-in addresses of your brand logins'), 'the fallback tier is rendered as a set');
+ok(all.includes('No address resolves yet'), 'an empty chain is said plainly rather than left blank');
+
+// 2. A lit switch that is not sending says so, with the master right there.
+ok(all.includes('notifications are off entirely for your brand right now'), 'brand lit-but-off note');
+ok(all.includes('notifications are off entirely for this location right now'), 'venue lit-but-off note');
+
+// 3. Brand off does not mute the venues, said beside the brand master switch.
+ok(all.includes('It does not mute your locations'), 'brand master says the venues are not muted');
+ok(all.includes('Its address is kept'), 'muting a level keeps its address');
+
+// 4. The muted badge rides the venue CARD, so a brand admin sees a quiet venue
+//    without opening anything.
+ok(all.includes('Notifications off'), 'muted badge copy');
+ok(listingHtml.includes('data-muted') || listingBundle.includes('data-muted'), 'muted badge is on the venue card');
+ok(listingBundle.includes('data-notify'), 'venue cards carry a notification editor');
+
+// 5. recipients_visible false REDACTS the address and keeps the row: the tier
+//    is still named, the brand's own addresses are not printed.
+ok(all.includes('Going to your brand address. A brand login can see it and change it'),
+  'redacted brand_override keeps the source sentence');
+ok(all.includes('A brand login can set a brand address instead'), 'redacted brand_login keeps the source sentence');
+
+// Every soft status both write RPCs can return is answered with next steps.
+for (const line of [
+  'Nothing had changed, so nothing was saved',              // nothing_to_change
+  'accept the current agreements on the Overview page',      // agreements_required
+  'Brand notifications are set by a brand login',            // forbidden_brand
+  'That location is not one your login covers',              // forbidden_code
+  'its notifications are paused',                            // retired
+  'has been archived, so its settings are gone',             // archived
+  'This login is suspended',                                 // suspended
+  'not a partner account, so it has no notification settings', // not_a_partner
+  'Your session has ended',                                  // unauthorized
+]) {
+  ok(all.includes(line), `settings status handled: ${line}`);
+}
+// The typed validation codes, each said as the thing to fix.
+for (const line of [
+  'A plain business address such as ops@yourgym.example works best', // not_an_address
+  'has a space in it',                                              // whitespace
+  'has a < or > in it',                                             // html
+  'carries hidden characters',                                      // zero_width
+  'characters this field cannot carry',                             // control_or_astral
+  'longer than 254 characters',                                     // max_length
+  'That switch could not be read',                                  // not_a_boolean
+  'That change could not be read',                                  // not_an_object
+]) {
+  ok(all.includes(line), `settings error handled: ${line}`);
+}
+
+// The brand page carries the brand-admin-only editor; it is hidden, not
+// half-rendered, for a location manager (settings arrives null).
+ok(brandHtml.includes('id="brand-notify"'), 'brand page carries the notifications section');
+for (const id of ['bn-email', 'bn-source', 'bn-master', 'bn-events']) {
+  ok(brandHtml.includes(`id="${id}"`), `brand notifications control: ${id}`);
+}
+ok(brandBundle.includes('set_partner_brand_settings'), 'brand page writes through the brand settings RPC');
+ok(listingBundle.includes('set_partner_location_settings'), 'locations page writes through the venue settings RPC');
+// A closed venue keeps its address and says routing is paused (annex §18.4).
+ok(listingBundle.includes('Notices are paused while this location is closed'),
+  'closed locations say routing is paused and the address is kept');
+
+// The Account page says what "change contact email" actually does: it moves
+// the SIGN-IN address, which is also the last notification fallback. That
+// wording is what hid a live drift bug (Decision 6.141).
+const accountHtml = fs.readFileSync('dist/account/index.html', 'utf8');
+ok(accountHtml.includes('Change your sign-in email'), 'account page names the sign-in address');
+ok(accountHtml.includes('confirmation link') && accountHtml.includes('new address'),
+  'account page says the new address is confirmed by a mailed link');
+ok(accountHtml.includes('last fallback for business notices'),
+  'account page says the sign-in address is the notification fallback');
+ok(!accountHtml.includes('Change contact email'), 'the old drifting "contact email" wording is gone');
+
+// The review queue shows where an approve / changes-requested answer lands,
+// resolved rather than as stored intent, and calls out the empty case.
+const adminHtml = fs.readFileSync('dist/admin/index.html', 'utf8');
+const adminBundle = [...adminHtml.matchAll(/<script[^>]+src="([^"]+)"/g)]
+  .map((m) => fs.readFileSync(path.join('dist', m[1].replace(/^\//, '')), 'utf8'))
+  .join('\n');
+ok(adminBundle.includes('notification_routing'), 'review queue reads the resolved routing');
+ok(adminBundle.includes('Where your decision lands'), 'review queue names the routing block');
+ok(adminBundle.includes('Nobody would be mailed'), 'review queue makes the empty recipient list visible');
+for (const reason of ['notifications_disabled', 'event_switch_off', 'no_address', 'venue_retired', 'venue_archived']) {
+  ok(adminBundle.includes(reason), `review queue names the suppression: ${reason}`);
+}
+
 // The report page must carry the not-counted install framing (annex §9.5:
 // never present an Android-only number as a total, never estimate).
 ok(all.includes('cannot be counted') || all.includes('Not counted'), 'installs framed as not counted');

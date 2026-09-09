@@ -134,14 +134,23 @@ import Portal from '../layouts/Portal.astro';
 <script>
   import {
     cacheRole,
+    contactSourceText,
     el,
     fmtDate,
+    fmtDateTime,
+    MUTED_BADGE_TEXT,
+    mutedEventText,
+    type NotifySettings,
+    rawSwitch,
     requireSession,
     retireStatusText,
     rpc,
+    settingsErrorLines,
+    settingsStatusText,
     show,
     STALE_DRAFT_TEXT,
     submitBlockText,
+    switchIsLitButOff,
     toast,
   } from '../lib/portal';
 
@@ -218,6 +227,11 @@ import Portal from '../layouts/Portal.astro';
   // The venue the open confirm is about, so the close acts on what was previewed.
   let retireTarget: { code_id: string; name: string; dueAt: string | null } | null = null;
   let liveByCode = new Map<string, LiveLocation>();
+  // Per-venue notification settings, keyed by code_id. They come from
+  // get_my_partner_locations (Decisions 6.141 / 6.142), NOT from the draft:
+  // notifications are live settings, so every control acts straight away and a
+  // submission with the review team never holds one up.
+  let settingsByCode = new Map<string, NotifySettings>();
   // The draft's concurrency token: null when the brand has no open draft.
   let expectedUpdatedAt: string | null = null;
   // Entries withdrawn from the draft since the last save (p_remove_entry_ids).
@@ -252,6 +266,265 @@ import Portal from '../layouts/Portal.astro';
     }));
   }
 
+  // -------------------------------------------------------------------------
+  // Per-venue notifications (Decisions 6.141 / 6.142). Live settings, never
+  // part of the draft: a write lands straight away, which is why setEditing
+  // deliberately leaves this subtree alone while a submission is in review.
+  // -------------------------------------------------------------------------
+
+  function paintMutedBadge(card: HTMLElement, s: NotifySettings | undefined): void {
+    const badge = card.querySelector('[data-muted]') as HTMLElement | null;
+    if (!badge) return;
+    badge.textContent = MUTED_BADGE_TEXT;
+    badge.hidden = !(s != null && s.notifications_enabled === false);
+  }
+
+  function notifyNoteFor(card: HTMLElement, kind: 'warn' | 'good', text: string): void {
+    const node = card.querySelector('[data-notify-note]') as HTMLElement | null;
+    if (!node) return;
+    node.hidden = false;
+    node.className = `mt-3 rounded-md border p-3 text-xs ${
+      kind === 'warn' ? 'border-amber-300 bg-amber-50 text-amber-900' : 'border-emerald-300 bg-emerald-50 text-emerald-900'
+    }`;
+    node.textContent = text;
+  }
+
+  /**
+   * One venue settings write. Key presence is the instruction, so the patch
+   * carries ONLY what changed: an explicit null clears the address (falling
+   * back to the brand's, then to the brand logins'), an absent key leaves that
+   * field alone. Returns the fresh block, or null once the reason is shown.
+   */
+  async function writeVenueSettings(
+    card: HTMLElement,
+    codeId: string,
+    patch: Record<string, unknown>,
+  ): Promise<NotifySettings | null> {
+    let res: Record<string, any>;
+    try {
+      res = await rpc<Record<string, any>>('set_partner_location_settings', { p_code_id: codeId, p: patch });
+    } catch {
+      notifyNoteFor(card, 'warn', 'That did not go through, so nothing changed. Reload the page and try again.');
+      return null;
+    }
+    if (res.status === 'invalid') {
+      notifyNoteFor(card, 'warn', settingsErrorLines(res.errors).join(' '));
+      return null;
+    }
+    if (res.status !== 'ok') {
+      notifyNoteFor(card, 'warn', settingsStatusText(res.status));
+      return null;
+    }
+    const next = (res.settings ?? null) as NotifySettings | null;
+    if (next) settingsByCode.set(codeId, next);
+    return next;
+  }
+
+  function paintVenueNotifyBody(card: HTMLElement, live: LiveLocation): void {
+    const body = card.querySelector('[data-notify-body]') as HTMLElement | null;
+    if (!body) return;
+    const s = settingsByCode.get(live.code_id);
+    body.innerHTML = '';
+    if (!s) {
+      const missing = document.createElement('p');
+      missing.className = 'mt-3 text-xs text-slate-500';
+      missing.textContent =
+        'Notification settings for this location could not be loaded just now. Reload the page to see them.';
+      body.appendChild(missing);
+      return;
+    }
+
+    const repaint = (): void => {
+      paintVenueNotifyBody(card, live);
+      paintMutedBadge(card, settingsByCode.get(live.code_id));
+    };
+
+    // --- The address -------------------------------------------------------
+    const addressWrap = document.createElement('div');
+    addressWrap.className = 'mt-3';
+    const label = document.createElement('label');
+    label.className = 'block text-sm font-medium';
+    label.textContent = 'Notification address for this location';
+    const field = document.createElement('input');
+    field.type = 'email';
+    field.autocomplete = 'off';
+    field.placeholder = 'north@yourgym.example';
+    field.className = 'mt-1 w-full max-w-sm rounded-md border border-slate-300 bg-white px-3 py-2 text-sm';
+    field.value = s.contact_email ?? '';
+    field.id = `notify-email-${live.code_id}`;
+    label.htmlFor = field.id;
+    addressWrap.appendChild(label);
+
+    const row = document.createElement('div');
+    row.className = 'mt-1 flex flex-wrap items-center gap-2';
+    row.appendChild(field);
+    const save = document.createElement('button');
+    save.type = 'button';
+    save.className = 'rounded-md bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-700 disabled:opacity-50';
+    save.textContent = 'Save address';
+    save.addEventListener('click', async () => {
+      const value = field.value.trim();
+      save.disabled = true;
+      const next = await writeVenueSettings(card, live.code_id, { contact_email: value === '' ? null : value });
+      save.disabled = false;
+      if (!next) return;
+      repaint();
+      notifyNoteFor(
+        card,
+        'good',
+        value === ''
+          ? 'Address cleared. This location follows the address named below the field now.'
+          : "Address saved. This location's notices go there from now on.",
+      );
+    });
+    row.appendChild(save);
+    if (s.contact_email != null) {
+      const clear = document.createElement('button');
+      clear.type = 'button';
+      clear.className = 'rounded-md border border-slate-300 bg-white px-3 py-2 text-xs hover:bg-slate-100';
+      clear.textContent = 'Clear it';
+      clear.addEventListener('click', async () => {
+        clear.disabled = true;
+        const next = await writeVenueSettings(card, live.code_id, { contact_email: null });
+        clear.disabled = false;
+        if (!next) return;
+        repaint();
+        notifyNoteFor(card, 'good', 'Address cleared. This location follows the address named below the field now.');
+      });
+      row.appendChild(clear);
+    }
+    addressWrap.appendChild(row);
+
+    // Never an empty box: the resolved answer and the tier it came from. An
+    // INHERITED address is redacted for a location manager, so the sentence
+    // says where notices go without naming the brand's own addresses.
+    const source = document.createElement('p');
+    source.className = 'mt-2 text-sm text-slate-700';
+    source.textContent = contactSourceText(s, 'venue');
+    addressWrap.appendChild(source);
+
+    const hint = document.createElement('p');
+    hint.className = 'mt-1 text-xs text-slate-500';
+    hint.textContent =
+      'Leaving this empty is fine. Notices then follow your brand address, and the sign-in address of your brand login when no brand address is set.';
+    addressWrap.appendChild(hint);
+    body.appendChild(addressWrap);
+
+    // --- The master switch -------------------------------------------------
+    const masterWrap = document.createElement('div');
+    masterWrap.className = 'mt-5 border-t border-slate-100 pt-4';
+    const masterLabel = document.createElement('label');
+    masterLabel.className = 'flex items-center gap-3 text-sm font-medium';
+    const master = document.createElement('input');
+    master.type = 'checkbox';
+    master.className = 'h-4 w-4';
+    master.checked = s.notifications_enabled === true;
+    master.id = `notify-master-${live.code_id}`;
+    masterLabel.htmlFor = master.id;
+    masterLabel.appendChild(master);
+    const masterText = document.createElement('span');
+    masterText.textContent = 'Send notices for this location';
+    masterLabel.appendChild(masterText);
+    masterWrap.appendChild(masterLabel);
+    const masterHint = document.createElement('p');
+    masterHint.className = 'mt-1 text-xs text-slate-500';
+    masterHint.textContent =
+      "Turning this off pauses this location's notices. Its address is kept, and your other locations are unaffected.";
+    masterWrap.appendChild(masterHint);
+    master.addEventListener('change', async () => {
+      const wanted = master.checked;
+      master.disabled = true;
+      const next = await writeVenueSettings(card, live.code_id, { notifications_enabled: wanted });
+      master.disabled = false;
+      if (!next) {
+        master.checked = !wanted;
+        return;
+      }
+      repaint();
+      notifyNoteFor(
+        card,
+        'good',
+        wanted
+          ? 'Notices for this location are on again.'
+          : 'Notices for this location are paused. Its address is kept, and your other locations are unchanged.',
+      );
+    });
+    body.appendChild(masterWrap);
+
+    // --- The one per-event switch this level carries -----------------------
+    const eventWrap = document.createElement('div');
+    eventWrap.className = 'mt-5 border-t border-slate-100 pt-4';
+    const eventLabel = document.createElement('label');
+    eventLabel.className = 'flex items-start gap-3 text-sm font-medium';
+    const box = document.createElement('input');
+    box.type = 'checkbox';
+    box.className = 'mt-0.5 h-4 w-4';
+    // The RAW switch, which is what a toggle renders. The master is shown
+    // separately, so the switch never lies about what the partner chose.
+    box.checked = rawSwitch(s, 'member_join_request');
+    box.id = `notify-join-${live.code_id}`;
+    eventLabel.htmlFor = box.id;
+    eventLabel.appendChild(box);
+    const eventText = document.createElement('span');
+    eventText.textContent = 'Someone asks to join this location';
+    eventLabel.appendChild(eventText);
+    eventWrap.appendChild(eventLabel);
+    const eventHint = document.createElement('p');
+    eventHint.className = 'ml-7 mt-1 text-xs text-slate-500';
+    eventHint.textContent = 'A player has scanned your code and is waiting on the Members page to be let in.';
+    eventWrap.appendChild(eventHint);
+    // Lit but not sending, because the master above is off. The switch stays
+    // visibly on and says so, rather than appearing to do nothing.
+    if (switchIsLitButOff(s, 'member_join_request')) {
+      const muted = document.createElement('p');
+      muted.className = 'ml-7 mt-1 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-900';
+      muted.textContent = mutedEventText('venue');
+      eventWrap.appendChild(muted);
+    }
+    box.addEventListener('change', async () => {
+      const wanted = box.checked;
+      box.disabled = true;
+      const next = await writeVenueSettings(card, live.code_id, { notify_member_join_request: wanted });
+      box.disabled = false;
+      if (!next) {
+        box.checked = !wanted;
+        return;
+      }
+      repaint();
+      notifyNoteFor(card, 'good', wanted ? 'On: join requests for this location.' : 'Off: join requests for this location.');
+    });
+    body.appendChild(eventWrap);
+
+    const when = document.createElement('p');
+    when.className = 'mt-4 text-xs text-slate-500';
+    when.textContent = s.updated_at
+      ? `Last changed ${fmtDateTime(s.updated_at)}.`
+      : 'Not changed yet, so these are the starting settings.';
+    body.appendChild(when);
+  }
+
+  function mountVenueNotify(card: HTMLElement, live: LiveLocation): void {
+    const host = card.querySelector('[data-notify]') as HTMLElement | null;
+    if (!host) return;
+    host.innerHTML = '';
+    const details = document.createElement('details');
+    details.className = 'rounded-lg border border-slate-200 bg-white p-4';
+    const summary = document.createElement('summary');
+    summary.className = 'cursor-pointer text-sm font-semibold';
+    summary.textContent = 'Notifications';
+    details.appendChild(summary);
+    const body = document.createElement('div');
+    body.setAttribute('data-notify-body', '');
+    details.appendChild(body);
+    const note = document.createElement('p');
+    note.setAttribute('data-notify-note', '');
+    note.hidden = true;
+    details.appendChild(note);
+    host.appendChild(details);
+    paintVenueNotifyBody(card, live);
+    paintMutedBadge(card, settingsByCode.get(live.code_id));
+  }
+
   // One card per venue: a live location (code_id set) or a new one (none yet).
   // A card carries the draft entry_id it stands for, so a save addresses the
   // same entry every time and a withdrawal names it explicitly.
@@ -270,7 +543,10 @@ import Portal from '../layouts/Portal.astro';
     card.innerHTML = `
       <div class="flex items-start justify-between gap-3">
         <div>
-          <h2 class="text-sm font-semibold" data-title></h2>
+          <div class="flex flex-wrap items-center gap-2">
+            <h2 class="text-sm font-semibold" data-title></h2>
+            <span data-muted hidden class="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs text-amber-900"></span>
+          </div>
           <p class="text-xs text-slate-500">${meta.join(' · ')}</p>
         </div>
         <div class="flex shrink-0 items-center gap-3">
@@ -315,7 +591,8 @@ import Portal from '../layouts/Portal.astro';
           Offers every venue honors go under <a class="underline" href="/brand">Brand</a>.
         </p>
         <div data-perk-rows class="mt-3 space-y-3"></div>
-      </div>`;
+      </div>
+      <div data-notify></div>`;
 
     input(card, 'label').value = String(seed.label ?? '');
     input(card, 'address').value = String(seed.address ?? '');
@@ -362,6 +639,17 @@ import Portal from '../layouts/Portal.astro';
     // live venue straight away, so it sits outside the save flow entirely.
     if (live) {
       card.querySelector('[data-retire]')?.addEventListener('click', () => void openRetire(live));
+      mountVenueNotify(card, live);
+    } else {
+      // A proposed venue has no code yet, so it has no settings row to edit.
+      const host = card.querySelector('[data-notify]') as HTMLElement | null;
+      if (host) {
+        const soon = document.createElement('p');
+        soon.className = 'text-xs text-slate-500';
+        soon.textContent =
+          'This venue gets its own notification address and switches once the submission is approved and its code is assigned. Until then its notices follow your brand address.';
+        host.appendChild(soon);
+      }
     }
 
     // A live venue with a staged change can go back to what is live today.
@@ -562,6 +850,9 @@ import Portal from '../layouts/Portal.astro';
       // Closing a location is not part of the submission, so a draft sitting
       // with the review team never holds it up (Decision 6.140).
       if (field.hasAttribute('data-retire')) continue;
+      // Notification settings are live, not staged (Decisions 6.141 / 6.142),
+      // so a submission in review leaves them editable for the same reason.
+      if (field.closest('[data-notify]')) continue;
       field.disabled = !enabled;
     }
   }
@@ -750,6 +1041,17 @@ import Portal from '../layouts/Portal.astro';
         ? `Archived on ${fmtDate(loc.archive_due_at)}, when the member list is cleared. Reopening is available until then.`
         : 'Reopening is available until the grace window ends.';
       who.appendChild(due);
+
+      // A closed venue keeps its address (Decision 6.142); only the routing is
+      // paused. Shown read-only, because every per-venue RPC answers a closed
+      // venue with `retired` and a control here would be refused.
+      const settings = settingsByCode.get(loc.code_id);
+      if (settings) {
+        const paused = document.createElement('p');
+        paused.className = 'mt-2 text-xs text-slate-500';
+        paused.textContent = `Notices are paused while this location is closed, and its address is kept. ${contactSourceText(settings, 'venue')} Reopening starts them again with nothing else to do.`;
+        who.appendChild(paused);
+      }
       card.appendChild(who);
 
       if (canRetire) {
@@ -796,11 +1098,26 @@ import Portal from '../layouts/Portal.astro';
     show('form-errors', false);
     show('listing-form', false);
     show('listing-loading', true);
-    const brand = await rpc<Record<string, any>>('get_my_partner_brand');
+    // The draft view and the live per-venue settings are two different reads:
+    // get_my_partner_brand carries the submission, get_my_partner_locations
+    // carries each venue's notification block (Decisions 6.141 / 6.142). The
+    // settings read is allowed to fail on its own without taking the page down.
+    const [brand, venues] = await Promise.all([
+      rpc<Record<string, any>>('get_my_partner_brand'),
+      rpc<Record<string, any>>('get_my_partner_locations').catch(() => ({ status: 'unavailable' }) as Record<string, any>),
+    ]);
     show('listing-loading', false);
     if (brand.status !== 'ok') {
       banner('warn', `Could not load your locations (${brand.status}).`);
       return;
+    }
+
+    settingsByCode = new Map();
+    if (venues.status === 'ok') {
+      for (const v of (venues.locations ?? []) as Array<Record<string, any>>) {
+        const settings = (v.settings ?? null) as NotifySettings | null;
+        if (typeof v.code_id === 'string' && settings) settingsByCode.set(v.code_id, settings);
+      }
     }
     limits = brand.field_limits ?? {};
     CODE_TEXT.max_perks = `can hold up to ${limits.max_perks ?? 5} perks`;

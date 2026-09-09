@@ -36,6 +36,7 @@ const PAGES = [
   'members/index.html',
   'screen/index.html',
   'display/index.html',
+  'team/index.html',
 ];
 for (const page of PAGES) {
   ok(fs.existsSync(path.join('dist', page)), `built: ${page}`);
@@ -91,13 +92,39 @@ for (const needle of [
   'get_my_partner_board',
   'rotate_partner_display_token',
   'functions/v1/partner_display',
+  // Decision 6.139: brand admins vs location managers
+  'get_my_partner_team',
+  'grant_partner_location',
+  'revoke_partner_location',
+  'set_partner_login_role',
+  'partner_set_login_status',
+  'request_partner_login',
+  'pending_requests',
+  'forbidden_brand',
+  'can_edit_brand',
+  'can_add_location',
+  'submit_block',
+  // Draft concurrency + the server-minted entry key (Decision 6.139)
+  'p_expected_updated_at',
+  'p_remove_entry_ids',
+  'entry_id',
 ]) {
   ok(all.includes(needle), `wired: ${needle}`);
 }
 
 // The per-location draft RPCs were DROPPED with Decision 6.138; a bundle
-// still naming one would call a function that no longer exists.
-for (const gone of ['get_my_partner_listing', 'save_partner_draft', 'submit_partner_draft']) {
+// still naming one would call a function that no longer exists. The junction
+// table and its attach path went with Decision 6.139, and the account's
+// primary venue became default_code_id (is_default on the switcher).
+for (const gone of [
+  'get_my_partner_listing',
+  'save_partner_draft',
+  'submit_partner_draft',
+  'attach_partner_code',
+  'admin_attach_partner_location',
+  'partner_account_codes',
+  'is_primary',
+]) {
   ok(!all.includes(gone), `retired RPC absent: ${gone}`);
 }
 
@@ -146,6 +173,48 @@ const brandBundle = [...brandHtml.matchAll(/<script[^>]+src="([^"]+)"/g)]
   .join('\n');
 ok(brandBundle.includes('partner_upload_logo') && !brandBundle.includes('code_id='), 'logo upload is brand-level');
 ok(!fs.readFileSync('dist/listing/index.html', 'utf8').includes('f-logo'), 'location page carries no logo control');
+
+// Decision 6.139, the role split. The Team page is brand-admin only: it
+// renders its own "not available for your login" state from the server's
+// forbidden_brand answer rather than an error, it carries the four team
+// controls and the operator-mediated request flow, and the nav link that
+// reaches it is hidden until the role says brand admin.
+const teamHtml = fs.readFileSync('dist/team/index.html', 'utf8');
+const teamBundle = [...teamHtml.matchAll(/<script[^>]+src="([^"]+)"/g)]
+  .map((m) => fs.readFileSync(path.join('dist', m[1].replace(/^\//, '')), 'utf8'))
+  .join('\n');
+ok(teamHtml.includes('id="team-forbidden"'), 'team page renders a not-available state for a manager');
+ok(teamBundle.includes('forbidden_brand'), 'team page reads the forbidden_brand answer');
+for (const fn of [
+  'get_my_partner_team',
+  'grant_partner_location',
+  'revoke_partner_location',
+  'set_partner_login_role',
+  'partner_set_login_status',
+  'request_partner_login',
+]) {
+  ok(teamBundle.includes(fn), `team page calls ${fn}`);
+}
+ok(teamHtml.includes('id="req-form"') && teamHtml.includes('id="team-requests"'),
+  'team page carries the request flow and its waiting list');
+ok(teamHtml.includes('No invite email'), 'request flow says no invite email goes out');
+// Every soft status the team RPCs can return is answered with next steps.
+for (const status of ['last_brand_admin', 'self_demote', 'self_suspend', 'operator_only', 'is_brand_admin',
+  'locations_required', 'already_requested']) {
+  ok(all.includes(status), `team status handled: ${status}`);
+}
+// The Team link is nav-gated by role, and the role-gated markup exists on the
+// pages a manager still reaches.
+ok(all.includes('id="nav-team"'), 'nav carries the role-gated Team link');
+ok(all.includes('syncNavRole') || all.includes('nav-team'), 'nav role sync wired');
+ok(brandHtml.includes('id="brand-readonly"'), 'brand page has a read-only state for a manager');
+ok(listingHtml.includes('id="submit-note"'), 'locations page explains a blocked submit');
+ok(listingBundle.includes('submit_block') && listingBundle.includes('can_add_location'),
+  'locations page renders submit + add-location from the server flags');
+ok(listingBundle.includes('p_expected_updated_at') && listingBundle.includes('p_remove_entry_ids'),
+  'locations save carries the concurrency token and explicit removals');
+ok(brandBundle.includes('p_expected_updated_at'), 'brand save carries the concurrency token');
+ok(all.includes('Another login changed this submission'), 'stale save tells the partner to reload');
 
 // The report page must carry the not-counted install framing (annex §9.5:
 // never present an Android-only number as a total, never estimate).

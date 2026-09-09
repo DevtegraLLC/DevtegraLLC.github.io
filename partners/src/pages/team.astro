@@ -1,0 +1,592 @@
+---
+import Portal from '../layouts/Portal.astro';
+---
+
+<Portal title="Team">
+  <h1 class="text-2xl font-bold tracking-tight">Team</h1>
+  <p class="mt-2 text-sm text-slate-600">
+    Who can sign in for your business, and what each login reaches. A brand admin covers the whole
+    brand: business name, website, logo, brand-wide perks, every venue (including any added later),
+    and this page. A location manager covers only the venues assigned to it, and sends submissions
+    that stay inside them.
+  </p>
+
+  <p id="team-loading" class="mt-4 text-sm text-slate-500">Loading…</p>
+
+  {/* A location manager gets {status:'forbidden_brand'} from get_my_partner_team
+      (Decision 6.139). That is a normal answer for that login, not an error. */}
+  <section id="team-forbidden" hidden class="mt-6 rounded-lg border border-slate-200 bg-white p-5">
+    <h2 class="text-sm font-semibold">Not available for your login</h2>
+    <p class="mt-2 text-sm text-slate-600">
+      Team access is handled by a brand login. Your login covers the venues assigned to it, which you
+      can see under <a class="underline" href="/listing">Locations</a>. A brand login can assign more
+      venues or ask the FitCreature team for another sign-in.
+    </p>
+  </section>
+
+  <p id="team-error" hidden class="mt-6 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900"></p>
+
+  <div id="team-main" hidden>
+    <div id="team-note" hidden class="mt-4 rounded-lg border p-4 text-sm"></div>
+
+    <section class="mt-8">
+      <h2 class="text-sm font-semibold">Logins</h2>
+      <div id="team-logins" class="mt-3 space-y-4"></div>
+    </section>
+
+    <section class="mt-10">
+      <h2 class="text-sm font-semibold">Requests waiting</h2>
+      <p class="mt-1 text-xs text-slate-500">
+        Requests you have filed that the FitCreature team has not set up yet.
+      </p>
+      <ul id="team-requests" class="mt-3 space-y-2 text-sm"></ul>
+      <p id="team-requests-empty" hidden class="mt-3 text-sm text-slate-500">No requests are waiting.</p>
+    </section>
+
+    <section class="mt-10 rounded-lg border border-slate-200 bg-white p-5">
+      <h2 class="text-sm font-semibold">Ask for a new login</h2>
+      <p class="mt-1 text-xs text-slate-500">
+        Filing this sends the request to the FitCreature team, who create the account. No invite email
+        goes out, so there is nothing for the new person to watch for: we set the login up and pass the
+        sign-in details back to you.
+      </p>
+      <form id="req-form" class="mt-4 space-y-4">
+        <div class="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label for="req-name" class="block text-sm font-medium">Contact name</label>
+            <input id="req-name" type="text" autocomplete="off" placeholder="Nora North"
+              class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
+          </div>
+          <div>
+            <label for="req-email" class="block text-sm font-medium">Sign-in email</label>
+            <input id="req-email" type="email" autocomplete="off" placeholder="nora@example.com"
+              class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
+          </div>
+        </div>
+        <div>
+          <label for="req-role" class="block text-sm font-medium">Role</label>
+          <select id="req-role" class="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm sm:w-64">
+            <option value="location_manager">Location manager</option>
+            <option value="brand_admin">Brand admin</option>
+          </select>
+          <p id="req-role-note" class="mt-1 text-xs text-slate-500"></p>
+        </div>
+        <div id="req-venues-wrap">
+          <p class="block text-sm font-medium">Venues this login covers</p>
+          <div id="req-venues" class="mt-2 grid gap-2 sm:grid-cols-2"></div>
+        </div>
+        <p id="req-note" hidden class="text-sm"></p>
+        <button type="submit" id="req-submit"
+          class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-50">
+          File the request
+        </button>
+      </form>
+    </section>
+  </div>
+</Portal>
+
+<script>
+  import {
+    cacheRole,
+    el,
+    fmtDateTime,
+    requireSession,
+    roleLabel,
+    rpc,
+    show,
+    teamStatusText,
+    toast,
+  } from '../lib/portal';
+
+  // One venue as get_my_partner_team reports it on a login: `via` says HOW the
+  // login reaches it, 'brand' (a brand grant, so every venue) or 'granted'.
+  interface TeamVenue {
+    code_id: string;
+    code: string;
+    label: string | null;
+    via: string;
+  }
+
+  interface BrandVenue {
+    code_id: string;
+    code: string;
+    label: string | null;
+    address: string | null;
+  }
+
+  interface TeamLogin {
+    partner_account_id: string;
+    contact_name: string | null;
+    contact_email: string | null;
+    sign_in_email: string | null;
+    account_status: string;
+    role: string;
+    is_self: boolean;
+    agreements_current: boolean;
+    last_login_at: string | null;
+    created_at: string | null;
+    locations: TeamVenue[];
+  }
+
+  interface TeamRequest {
+    request_id: string;
+    email: string;
+    contact_name: string;
+    role: string;
+    code_ids: string[] | null;
+    status: string;
+    created_at: string;
+  }
+
+  interface TeamState {
+    status: string;
+    brand_id?: string;
+    logins?: TeamLogin[];
+    pending_requests?: TeamRequest[];
+    locations?: BrandVenue[];
+  }
+
+  let venues: BrandVenue[] = [];
+
+  const venueName = (v: { label: string | null; code: string }): string => v.label ?? v.code;
+
+  function note(kind: 'info' | 'warn' | 'good', text: string): HTMLElement {
+    const node = el('team-note');
+    node.hidden = false;
+    node.className = `mt-4 rounded-lg border p-4 text-sm ${
+      kind === 'warn'
+        ? 'border-amber-300 bg-amber-50 text-amber-900'
+        : kind === 'good'
+          ? 'border-emerald-300 bg-emerald-50 text-emerald-900'
+          : 'border-slate-200 bg-white text-slate-700'
+    }`;
+    node.textContent = text;
+    node.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    return node;
+  }
+
+  function chip(text: string, tone: 'plain' | 'good' | 'warn' | 'accent' = 'plain'): HTMLElement {
+    const span = document.createElement('span');
+    span.className = `rounded-full px-2.5 py-0.5 text-xs ${
+      tone === 'good'
+        ? 'bg-emerald-100 text-emerald-800'
+        : tone === 'warn'
+          ? 'bg-amber-100 text-amber-900'
+          : tone === 'accent'
+            ? 'bg-indigo-100 text-indigo-800'
+            : 'bg-slate-100 text-slate-700'
+    }`;
+    span.textContent = text;
+    return span;
+  }
+
+  function button(text: string, className: string): HTMLButtonElement {
+    const node = document.createElement('button');
+    node.type = 'button';
+    node.textContent = text;
+    node.className = className;
+    return node;
+  }
+
+  const SMALL_BUTTON = 'rounded-md border border-slate-300 bg-white px-3 py-1 text-xs hover:bg-slate-100';
+
+  /**
+   * One team write. Returns the payload on success, null once the reason has
+   * been shown. Every refusal here is a soft status; a raised error means the
+   * session itself is no longer usable (signed out, suspended).
+   */
+  async function call(fn: string, args: Record<string, unknown>): Promise<Record<string, any> | null> {
+    let res: Record<string, any>;
+    try {
+      res = await rpc<Record<string, any>>(fn, args);
+    } catch {
+      // A raised error, not a soft status: the session or the page state is
+      // out of date, and nothing was changed.
+      note('warn', 'That did not go through, so nothing changed. Reload the page and try again.');
+      return null;
+    }
+    if (res.status === 'ok') return res;
+    note('warn', teamStatusText(res.status));
+    return null;
+  }
+
+  function venueChips(login: TeamLogin): HTMLElement {
+    const wrap = document.createElement('div');
+    wrap.className = 'mt-3';
+
+    const heading = document.createElement('p');
+    heading.className = 'text-xs text-slate-500';
+    heading.textContent =
+      login.role === 'brand_admin'
+        ? `Every venue of the brand, including any added later (${login.locations.length} today).`
+        : login.locations.length > 0
+          ? 'Assigned venues:'
+          : 'No venues assigned yet.';
+    wrap.appendChild(heading);
+
+    const list = document.createElement('div');
+    list.className = 'mt-2 flex flex-wrap gap-2';
+    for (const venue of login.locations) {
+      if (venue.via === 'brand') {
+        // Reached by derivation, so there is nothing to unassign.
+        list.appendChild(chip(`${venueName(venue)} (${venue.code})`));
+        continue;
+      }
+      const held = document.createElement('span');
+      held.className = 'inline-flex items-center gap-2 rounded-full bg-indigo-100 py-0.5 pl-2.5 pr-1 text-xs text-indigo-800';
+      const label = document.createElement('span');
+      label.textContent = `${venueName(venue)} (${venue.code})`;
+      held.appendChild(label);
+      const drop = button('Unassign', 'rounded-full px-1.5 text-indigo-700 hover:text-rose-700');
+      drop.setAttribute('aria-label', `Unassign ${venueName(venue)}`);
+      drop.addEventListener('click', async () => {
+        const who = login.contact_name ?? login.sign_in_email ?? 'this login';
+        if (
+          !confirm(
+            `Unassign ${venueName(venue)} from ${who}? This stops future access. Anything already downloaded, such as a report or a print pack, stays with them.`,
+          )
+        ) {
+          return;
+        }
+        const res = await call('revoke_partner_location', {
+          p_partner_account_id: login.partner_account_id,
+          p_code_id: venue.code_id,
+        });
+        if (!res) return;
+        if (res.display_token_rotation_advised) {
+          offerRotation(venue);
+        } else {
+          note('good', `${venueName(venue)} is no longer assigned to ${who}.`);
+        }
+        await load(true);
+      });
+      held.appendChild(drop);
+      list.appendChild(held);
+    }
+    wrap.appendChild(list);
+
+    if (login.role === 'location_manager') {
+      const free = venues.filter((v) => !login.locations.some((l) => l.code_id === v.code_id));
+      const row = document.createElement('div');
+      row.className = 'mt-3 flex flex-wrap items-center gap-2';
+      if (free.length === 0) {
+        const done = document.createElement('p');
+        done.className = 'text-xs text-slate-500';
+        done.textContent = 'Every venue of the brand is already assigned to this login.';
+        row.appendChild(done);
+      } else {
+        const select = document.createElement('select');
+        select.className = 'rounded-md border border-slate-300 bg-white px-3 py-1 text-xs';
+        select.setAttribute('aria-label', 'Venue to assign');
+        for (const venue of free) {
+          const option = document.createElement('option');
+          option.value = venue.code_id;
+          option.textContent = `${venueName(venue)} (${venue.code})`;
+          select.appendChild(option);
+        }
+        row.appendChild(select);
+        const add = button('Assign venue', SMALL_BUTTON);
+        add.addEventListener('click', async () => {
+          const res = await call('grant_partner_location', {
+            p_partner_account_id: login.partner_account_id,
+            p_code_id: select.value,
+          });
+          if (!res) return;
+          note('good', 'Venue assigned.');
+          await load(true);
+        });
+        row.appendChild(add);
+      }
+      wrap.appendChild(row);
+    }
+
+    return wrap;
+  }
+
+  /** After a revoke, the venue's lobby-screen link still works until it is rotated. */
+  function offerRotation(venue: TeamVenue): void {
+    const node = note(
+      'info',
+      `Unassigned. The lobby-screen link for ${venueName(venue)} still works, so rotate it if that person had it running on a TV.`,
+    );
+    const rotate = button('Rotate the screen link', `${SMALL_BUTTON} ml-3`);
+    rotate.addEventListener('click', async () => {
+      if (!confirm('Rotate the screen link? Every TV showing the current link goes dark until it is given the new one.')) {
+        return;
+      }
+      const res = await call('rotate_partner_display_token', { p_code_id: venue.code_id });
+      if (!res) return;
+      note('good', 'Screen link rotated. Open Lobby screen to copy the new one.');
+    });
+    node.appendChild(rotate);
+  }
+
+  function loginCard(login: TeamLogin): HTMLElement {
+    const card = document.createElement('article');
+    card.className = 'rounded-lg border border-slate-200 bg-white p-5';
+    card.dataset.accountId = login.partner_account_id;
+
+    const head = document.createElement('div');
+    head.className = 'flex flex-wrap items-start justify-between gap-3';
+
+    const who = document.createElement('div');
+    const name = document.createElement('p');
+    name.className = 'text-sm font-semibold';
+    name.textContent = login.contact_name ?? 'Unnamed login';
+    who.appendChild(name);
+    const email = document.createElement('p');
+    email.className = 'text-xs text-slate-500';
+    email.textContent = login.sign_in_email ?? login.contact_email ?? 'no sign-in email on file';
+    who.appendChild(email);
+    head.appendChild(who);
+
+    const chips = document.createElement('div');
+    chips.className = 'flex flex-wrap items-center gap-2';
+    chips.appendChild(chip(roleLabel(login.role), login.role === 'brand_admin' ? 'accent' : 'plain'));
+    chips.appendChild(
+      login.account_status === 'active' ? chip('Active', 'good') : chip(`Account ${login.account_status}`, 'warn'),
+    );
+    chips.appendChild(
+      login.agreements_current ? chip('Agreements signed', 'good') : chip('Agreements outstanding', 'warn'),
+    );
+    if (login.is_self) chips.appendChild(chip('This is you'));
+    head.appendChild(chips);
+    card.appendChild(head);
+
+    const seen = document.createElement('p');
+    seen.className = 'mt-2 text-xs text-slate-500';
+    seen.textContent = login.last_login_at
+      ? `Last signed in ${fmtDateTime(login.last_login_at)}.`
+      : 'Has not signed in yet.';
+    card.appendChild(seen);
+
+    card.appendChild(venueChips(login));
+
+    const controls = document.createElement('div');
+    controls.className = 'mt-4 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4';
+
+    const roleSelect = document.createElement('select');
+    roleSelect.className = 'rounded-md border border-slate-300 bg-white px-3 py-1 text-xs';
+    roleSelect.setAttribute('aria-label', 'Role for this login');
+    for (const value of ['brand_admin', 'location_manager']) {
+      const option = document.createElement('option');
+      option.value = value;
+      option.textContent = roleLabel(value);
+      option.selected = login.role === value;
+      roleSelect.appendChild(option);
+    }
+    controls.appendChild(roleSelect);
+
+    const apply = button('Apply role', SMALL_BUTTON);
+    apply.addEventListener('click', async () => {
+      if (roleSelect.value === login.role) {
+        toast('That is already the role on this login.');
+        return;
+      }
+      const promoting = roleSelect.value === 'brand_admin';
+      const question = promoting
+        ? `Give ${login.contact_name ?? 'this login'} brand admin? It will reach every venue, the brand section, and this page.`
+        : `Step ${login.contact_name ?? 'this login'} down to location manager? Brand-wide access ends, and it keeps only the venues you assign.`;
+      if (!confirm(question)) return;
+      const res = await call('set_partner_login_role', {
+        p_partner_account_id: login.partner_account_id,
+        p_role: roleSelect.value,
+      });
+      if (!res) {
+        roleSelect.value = login.role;
+        return;
+      }
+      note(
+        'good',
+        promoting
+          ? 'Role updated. This login now reaches every venue of the brand.'
+          : 'Role updated. Assign the venues this login should cover.',
+      );
+      await load(true);
+    });
+    controls.appendChild(apply);
+
+    if (login.account_status !== 'active') {
+      const restore = document.createElement('p');
+      restore.className = 'text-xs text-slate-500';
+      restore.textContent = 'Suspended. The FitCreature team can switch this login back on.';
+      controls.appendChild(restore);
+    } else if (login.is_self) {
+      const own = document.createElement('p');
+      own.className = 'text-xs text-slate-500';
+      own.textContent = 'A login cannot suspend itself.';
+      controls.appendChild(own);
+    } else {
+      const suspend = button('Suspend login', 'rounded-md border border-rose-200 bg-white px-3 py-1 text-xs text-rose-700 hover:bg-rose-50');
+      suspend.addEventListener('click', async () => {
+        if (
+          !confirm(
+            `Suspend ${login.contact_name ?? 'this login'}? Signing in stops right away and open sessions end. Switching it back on is done by the FitCreature team.`,
+          )
+        ) {
+          return;
+        }
+        const res = await call('partner_set_login_status', {
+          p_partner_account_id: login.partner_account_id,
+          p_status: 'suspended',
+        });
+        if (!res) return;
+        note('good', 'Login suspended. Reach out to the FitCreature team when it should come back.');
+        await load(true);
+      });
+      controls.appendChild(suspend);
+    }
+
+    card.appendChild(controls);
+    return card;
+  }
+
+  function renderRequests(requests: TeamRequest[]): void {
+    const list = el('team-requests');
+    list.innerHTML = '';
+    for (const request of requests) {
+      const li = document.createElement('li');
+      li.className = 'flex flex-wrap items-center justify-between gap-2 rounded-md border border-slate-200 bg-white px-4 py-2.5';
+      const who = document.createElement('span');
+      const name = document.createElement('span');
+      name.className = 'font-medium';
+      name.textContent = request.contact_name;
+      const address = document.createElement('span');
+      address.className = 'text-xs text-slate-500';
+      const named = (request.code_ids ?? [])
+        .map((id) => venues.find((v) => v.code_id === id))
+        .filter((v): v is BrandVenue => Boolean(v))
+        .map((v) => venueName(v));
+      const scope = request.role === 'brand_admin' ? 'every venue' : named.length > 0 ? named.join(', ') : 'venues to confirm';
+      address.textContent = ` ${request.email} · ${roleLabel(request.role)} · ${scope} · filed ${fmtDateTime(request.created_at)}`;
+      who.appendChild(name);
+      who.appendChild(address);
+      li.appendChild(who);
+      li.appendChild(chip('With the FitCreature team', 'accent'));
+      list.appendChild(li);
+    }
+    show('team-requests-empty', requests.length === 0);
+  }
+
+  function renderVenuePicker(): void {
+    const wrap = el('req-venues');
+    wrap.innerHTML = '';
+    for (const venue of venues) {
+      const label = document.createElement('label');
+      label.className = 'flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm';
+      const box = document.createElement('input');
+      box.type = 'checkbox';
+      box.value = venue.code_id;
+      box.className = 'req-venue h-4 w-4';
+      label.appendChild(box);
+      const text = document.createElement('span');
+      text.textContent = `${venueName(venue)} (${venue.code})`;
+      label.appendChild(text);
+      wrap.appendChild(label);
+    }
+  }
+
+  function paintRoleNote(): void {
+    const role = el<HTMLSelectElement>('req-role').value;
+    el('req-role-note').textContent =
+      role === 'brand_admin'
+        ? 'A brand admin reaches every venue, present and future, and can change the brand section and the team.'
+        : 'A location manager reaches only the venues you pick below.';
+    show('req-venues-wrap', role !== 'brand_admin');
+  }
+
+  async function load(quiet = false): Promise<void> {
+    if (!quiet) show('team-loading', true);
+    const team = await rpc<TeamState>('get_my_partner_team');
+    show('team-loading', false);
+
+    if (team.status === 'forbidden_brand') {
+      // Expected for a location manager: the page simply is not theirs.
+      cacheRole('location_manager');
+      show('team-main', false);
+      show('team-forbidden', true);
+      return;
+    }
+    if (team.status !== 'ok') {
+      const error = el('team-error');
+      error.textContent =
+        team.status === 'suspended'
+          ? 'This login is suspended right now, so team settings are on hold. Reach out to the FitCreature team if that is unexpected.'
+          : `Could not load your team (${team.status}).`;
+      error.hidden = false;
+      return;
+    }
+
+    cacheRole('brand_admin');
+    show('team-error', false);
+    show('team-forbidden', false);
+    show('team-main', true);
+
+    venues = team.locations ?? [];
+    const logins = team.logins ?? [];
+    const wrap = el('team-logins');
+    wrap.innerHTML = '';
+    for (const login of logins) wrap.appendChild(loginCard(login));
+
+    renderRequests(team.pending_requests ?? []);
+    renderVenuePicker();
+    paintRoleNote();
+  }
+
+  el<HTMLSelectElement>('req-role').addEventListener('change', paintRoleNote);
+
+  el<HTMLFormElement>('req-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const noteNode = el('req-note');
+    noteNode.hidden = true;
+    const role = el<HTMLSelectElement>('req-role').value;
+    const picked = [...document.querySelectorAll<HTMLInputElement>('.req-venue')]
+      .filter((box) => box.checked)
+      .map((box) => box.value);
+    const args = {
+      p_email: el<HTMLInputElement>('req-email').value.trim(),
+      p_contact_name: el<HTMLInputElement>('req-name').value.trim(),
+      p_role: role,
+      p_code_ids: role === 'brand_admin' ? [] : picked,
+    };
+    const submitButton = el<HTMLButtonElement>('req-submit');
+    submitButton.disabled = true;
+    let res: Record<string, any>;
+    try {
+      res = await rpc<Record<string, any>>('request_partner_login', args);
+    } catch {
+      submitButton.disabled = false;
+      noteNode.className = 'text-sm text-rose-700';
+      noteNode.textContent = 'That did not go through, so nothing was filed. Reload the page and try again.';
+      noteNode.hidden = false;
+      return;
+    }
+    submitButton.disabled = false;
+    if (res.status !== 'ok') {
+      noteNode.className = 'text-sm text-rose-700';
+      noteNode.textContent = teamStatusText(res.status);
+      noteNode.hidden = false;
+      return;
+    }
+    noteNode.className = 'text-sm text-emerald-700';
+    noteNode.textContent =
+      'Request filed. The FitCreature team creates the login and passes the sign-in details back to you. Nothing is emailed to that address on its own.';
+    noteNode.hidden = false;
+    el<HTMLInputElement>('req-email').value = '';
+    el<HTMLInputElement>('req-name').value = '';
+    for (const box of document.querySelectorAll<HTMLInputElement>('.req-venue')) box.checked = false;
+    await load(true);
+  });
+
+  void requireSession()
+    .then(() => load())
+    .catch((err) => {
+      if (String(err).includes('redirecting')) return;
+      show('team-loading', false);
+      const error = el('team-error');
+      error.textContent = /permission denied/i.test(String(err))
+        ? 'This account is not a partner account, so it has no team page.'
+        : String(err);
+      error.hidden = false;
+    });
+</script>

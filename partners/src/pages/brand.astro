@@ -13,6 +13,10 @@ import Portal from '../layouts/Portal.astro';
 
   <p id="brand-loading" class="mt-4 text-sm text-slate-500">Loading…</p>
 
+  {/* A location manager sees the brand's public identity and cannot change it
+      (Decision 6.139): brand-level edits belong to a brand login. */}
+  <p id="brand-readonly" hidden class="mt-4 rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-700"></p>
+
   <div id="status-banner" hidden class="mt-4 rounded-lg border p-4 text-sm"></div>
 
   <form id="brand-form" hidden class="mt-6 space-y-6">
@@ -48,7 +52,7 @@ import Portal from '../layouts/Portal.astro';
             Upload logo
           </button>
           <input id="f-logo" type="file" accept="image/png,image/jpeg,image/webp" hidden />
-          <p class="mt-2 text-xs text-slate-500">
+          <p id="logo-hint" class="mt-2 text-xs text-slate-500">
             Square PNG, JPEG, or WebP · 120-1024px · under 1.5 MB · shown cropped to a circle
             (see the <a class="underline" href="/print-pack#logo-spec">logo spec</a>). One logo for every location.
           </p>
@@ -97,7 +101,7 @@ import Portal from '../layouts/Portal.astro';
 </Portal>
 
 <script>
-  import { requireSession, rpc, el, show, toast } from '../lib/portal';
+  import { cacheRole, el, requireSession, rpc, show, STALE_DRAFT_TEXT, submitBlockText, toast } from '../lib/portal';
   import { authHeaders, functionsUrl } from '../lib/supabase';
 
   interface Perk {
@@ -108,6 +112,11 @@ import Portal from '../layouts/Portal.astro';
 
   let limits: Record<string, number> = {};
   let inReview = false;
+  // The draft's concurrency token: null while the brand has no open draft.
+  let expectedUpdatedAt: string | null = null;
+  // can_edit_brand from the server. Presentation only: the same save is
+  // refused with forbidden_brand whatever this page shows.
+  let canEdit = true;
 
   function counter(spanId: string, input: HTMLInputElement, key: string): void {
     const update = () => {
@@ -176,6 +185,8 @@ import Portal from '../layouts/Portal.astro';
     el('logo-placeholder').hidden = true;
   }
 
+  // The live locations array arrives filtered to what this login reaches
+  // (Decision 6.139), so every venue listed here is one it may edit.
   function renderLocations(locations: Array<Record<string, any>>): void {
     const list = el('brand-location-list');
     list.innerHTML = '';
@@ -189,7 +200,7 @@ import Portal from '../layouts/Portal.astro';
       meta.className = 'text-xs text-slate-500';
       const bits = [String(l.code)];
       if (!l.has_location) bits.push('no map pin yet');
-      if (!l.held) bits.push('managed by another login');
+      if (l.via === 'granted') bits.push('assigned to your login');
       const perks = Array.isArray(l.perks) ? l.perks.length : 0;
       bits.push(`${perks} location perk${perks === 1 ? '' : 's'}`);
       meta.textContent = bits.join(' · ');
@@ -198,6 +209,24 @@ import Portal from '../layouts/Portal.astro';
       list.appendChild(li);
     }
     show('brand-locations', locations.length > 0);
+  }
+
+  /** A location manager reads this page; a brand login edits it. */
+  function applyReadOnly(reach: number, brandCount: number): void {
+    const note = el('brand-readonly');
+    note.textContent =
+      `This is your brand's card as players see it, and a brand login makes changes to it. ` +
+      `Your login covers ${reach} of the ${brandCount} location${brandCount === 1 ? '' : 's'} on it, ` +
+      'editable under Locations.';
+    note.hidden = false;
+    for (const field of el('brand-form').querySelectorAll<HTMLInputElement | HTMLButtonElement>('input, button')) {
+      field.disabled = true;
+    }
+    show('btn-save', false);
+    show('btn-submit', false);
+    show('perk-add', false);
+    show('logo-button', false);
+    show('logo-hint', false);
   }
 
   async function load(): Promise<void> {
@@ -210,10 +239,13 @@ import Portal from '../layouts/Portal.astro';
     }
     limits = brand.field_limits ?? {};
     el('c-maxperks').textContent = String(limits.max_perks ?? 5);
+    cacheRole(brand.role);
+    canEdit = brand.can_edit_brand !== false;
 
     const live = (brand.live ?? {}) as Record<string, any>;
     const draft = (brand.draft ?? null) as Record<string, any> | null;
     inReview = draft?.status === 'submitted';
+    expectedUpdatedAt = (draft?.updated_at as string | undefined) ?? null;
 
     el<HTMLInputElement>('f-name').value = String(draft?.business_name ?? live.name ?? '');
     el<HTMLInputElement>('f-url').value = String(draft?.website_url ?? live.website_url ?? '');
@@ -256,7 +288,9 @@ import Portal from '../layouts/Portal.astro';
     el<HTMLButtonElement>('btn-save').disabled = inReview;
     el<HTMLButtonElement>('btn-submit').disabled = inReview;
 
-    renderLocations((live.locations ?? []) as Array<Record<string, any>>);
+    const liveLocations = (live.locations ?? []) as Array<Record<string, any>>;
+    renderLocations(liveLocations);
+    if (!canEdit) applyReadOnly(liveLocations.length, Number(live.location_count ?? liveLocations.length));
   }
 
   el('perk-add').addEventListener('click', () => {
@@ -299,33 +333,62 @@ import Portal from '../layouts/Portal.astro';
     note.textContent = `Logo attached (${body.width}×${body.height}). It goes live with your next approved submission.`;
   });
 
-  el<HTMLFormElement>('brand-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    show('form-errors', false);
-    const res = await rpc<Record<string, any>>('save_partner_brand_draft', { p: fields() });
+  // One draft per brand, so a save carries the token it loaded with. A stale
+  // answer deliberately carries no draft body: reload instead of overwriting.
+  function staleBanner(): void {
+    const node = el('status-banner');
+    node.hidden = false;
+    node.className = 'mt-4 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900';
+    node.textContent = `${STALE_DRAFT_TEXT} `;
+    const reload = document.createElement('button');
+    reload.type = 'button';
+    reload.textContent = 'Reload the submission';
+    reload.className = 'rounded-md border border-amber-400 bg-white px-3 py-1 text-xs hover:bg-amber-100';
+    reload.addEventListener('click', () => void load());
+    node.appendChild(reload);
+  }
+
+  /** Saves the brand section; true when the draft now holds what is on screen. */
+  async function saveBrand(): Promise<boolean> {
+    const res = await rpc<Record<string, any>>('save_partner_brand_draft', {
+      p: fields(),
+      p_expected_updated_at: expectedUpdatedAt,
+    });
     if (res.status === 'invalid') {
       showErrors(res.errors ?? []);
-      return;
+      return false;
+    }
+    if (res.status === 'stale') {
+      staleBanner();
+      return false;
+    }
+    if (res.status === 'in_review') {
+      banner('info', 'Your changes are already with the team.');
+      return false;
+    }
+    if (res.status === 'forbidden_brand') {
+      banner('info', 'Brand details are changed by a brand login. Your login covers its venues under Locations.');
+      return false;
     }
     if (res.status !== 'ok') {
       toast(`Could not save (${res.status}).`);
-      return;
+      return false;
     }
+    expectedUpdatedAt = (res.updated_at as string | undefined) ?? expectedUpdatedAt;
+    return true;
+  }
+
+  el<HTMLFormElement>('brand-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    show('form-errors', false);
+    if (!(await saveBrand())) return;
     toast('Draft saved.');
     banner('info', "You have a draft in progress. Submit it when it's ready.");
   });
 
   el('btn-submit').addEventListener('click', async () => {
     show('form-errors', false);
-    const saved = await rpc<Record<string, any>>('save_partner_brand_draft', { p: fields() });
-    if (saved.status === 'invalid') {
-      showErrors(saved.errors ?? []);
-      return;
-    }
-    if (saved.status === 'in_review') {
-      banner('info', 'Your changes are already with the team.');
-      return;
-    }
+    if (!(await saveBrand())) return;
     const res = await rpc<Record<string, any>>('submit_partner_brand_draft');
     if (res.status === 'ok') {
       banner('good', 'Submitted. The FitCreature team will review it shortly.');
@@ -333,6 +396,8 @@ import Portal from '../layouts/Portal.astro';
       el<HTMLButtonElement>('btn-submit').disabled = true;
     } else if (res.status === 'agreements_required') {
       banner('warn', 'Please accept the current agreements on the Overview page first.');
+    } else if (res.status === 'forbidden_submit') {
+      banner('info', submitBlockText(res.reason));
     } else if (res.status === 'location_required') {
       banner('warn', 'A location in this draft still needs its map pin. Add it under Locations, then submit.');
     } else if (res.status === 'invalid') {

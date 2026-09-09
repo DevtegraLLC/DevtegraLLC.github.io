@@ -89,6 +89,61 @@ import Portal from '../layouts/Portal.astro';
     </div>
   </form>
 
+  {/* Notifications (Decisions 6.141 / 6.142). Brand-admin only on the READ as
+      well as the write, so get_my_partner_brand hands a location manager
+      `settings: null` and this section stays hidden rather than rendering an
+      empty form. */}
+  <section id="brand-notify" hidden class="mt-10 rounded-lg border border-slate-200 bg-white p-5">
+    <h2 class="text-sm font-semibold">Notifications for your brand</h2>
+    <p class="mt-1 text-xs text-slate-500">
+      Where business notices about your brand go, and which ones you would like. Each location has an
+      address and switches of its own under <a class="underline" href="/listing">Locations</a>.
+    </p>
+
+    <div class="mt-5">
+      <label for="bn-email" class="block text-sm font-medium">Brand notification address</label>
+      <div class="mt-1 flex flex-wrap items-center gap-2">
+        <input id="bn-email" type="email" autocomplete="off" placeholder="ops@yourgym.example"
+          class="w-full max-w-sm rounded-md border border-slate-300 px-3 py-2 text-sm" />
+        <button type="button" id="bn-email-save"
+          class="rounded-md bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700 disabled:opacity-50">
+          Save address
+        </button>
+        <button type="button" id="bn-email-clear" hidden
+          class="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm hover:bg-slate-100">
+          Clear it
+        </button>
+      </div>
+      {/* Never an empty box: the resolved answer and the tier it came from. */}
+      <p id="bn-source" class="mt-2 text-sm text-slate-700"></p>
+      <p class="mt-1 text-xs text-slate-500">
+        A business inbox such as ops@ stays with the business through every staff change. Leaving it
+        empty is fine: notices then go to the sign-in address of every active brand login.
+      </p>
+    </div>
+
+    <div class="mt-6 border-t border-slate-100 pt-5">
+      <label for="bn-master" class="flex items-center gap-3 text-sm font-medium">
+        <input id="bn-master" type="checkbox" class="h-4 w-4" />
+        Send notices addressed to your brand
+      </label>
+      {/* The genuinely surprising rule, said where someone will look for it. */}
+      <p class="mt-1 text-xs text-slate-500">
+        Turning this off pauses your brand's own notices. It does not mute your locations: each venue
+        keeps its own address and its own switches, so a site manager still hears about their venue.
+        The address above is kept either way, and venues that inherit it still do.
+      </p>
+    </div>
+
+    <div class="mt-6 border-t border-slate-100 pt-5">
+      <h3 class="text-sm font-semibold">Notices your brand can receive</h3>
+      <div id="bn-events" class="mt-3 space-y-4"></div>
+    </div>
+
+    <p id="bn-note" hidden class="mt-5 rounded-lg border p-4 text-sm"></p>
+    <p id="bn-updated" class="mt-3 text-xs text-slate-500"></p>
+  </section>
+
   <section id="brand-locations" hidden class="mt-10">
     <h2 class="text-sm font-semibold">Locations on this card</h2>
     <p class="mt-1 text-xs text-slate-500">
@@ -101,7 +156,24 @@ import Portal from '../layouts/Portal.astro';
 </Portal>
 
 <script>
-  import { cacheRole, el, requireSession, rpc, show, STALE_DRAFT_TEXT, submitBlockText, toast } from '../lib/portal';
+  import {
+    cacheRole,
+    contactSourceText,
+    el,
+    fmtDateTime,
+    mutedEventText,
+    type NotifySettings,
+    rawSwitch,
+    requireSession,
+    rpc,
+    settingsErrorLines,
+    settingsStatusText,
+    show,
+    STALE_DRAFT_TEXT,
+    submitBlockText,
+    switchIsLitButOff,
+    toast,
+  } from '../lib/portal';
   import { authHeaders, functionsUrl } from '../lib/supabase';
 
   interface Perk {
@@ -229,6 +301,180 @@ import Portal from '../layouts/Portal.astro';
     show('logo-hint', false);
   }
 
+  // -------------------------------------------------------------------------
+  // Notifications (Decisions 6.141 / 6.142). Live settings, not part of the
+  // draft: every control here acts straight away, so a submission sitting with
+  // the review team never holds a notification change up.
+  // -------------------------------------------------------------------------
+
+  // The three brand-addressed notices. `key` is the stored column, `event` the
+  // name the `effective` block uses; they differ by the notify_ prefix, and the
+  // server keys `effective` by EVENT, so both are carried rather than derived
+  // in two places.
+  const BRAND_EVENTS: Array<{ key: string; event: string; label: string; hint: string }> = [
+    {
+      key: 'notify_draft_approved',
+      event: 'draft_approved',
+      label: 'Your submission is approved',
+      hint: 'The FitCreature team has published your changes, and your card in the app now shows them.',
+    },
+    {
+      key: 'notify_draft_changes_requested',
+      event: 'draft_changes_requested',
+      label: 'Your submission needs a change',
+      hint: 'The team has sent a submission back with a note about what to adjust.',
+    },
+    {
+      key: 'notify_member_join_request',
+      event: 'member_join_request',
+      label: 'A copy of the join requests your venues get',
+      hint: 'Each venue already hears about its own join requests. This adds a copy to the brand address, and it starts off so a brand with many venues is not flooded.',
+    },
+  ];
+
+  function notifyNote(kind: 'info' | 'warn' | 'good', text: string): void {
+    const node = el('bn-note');
+    node.hidden = false;
+    node.className = `mt-5 rounded-lg border p-4 text-sm ${
+      kind === 'warn'
+        ? 'border-amber-300 bg-amber-50 text-amber-900'
+        : kind === 'good'
+          ? 'border-emerald-300 bg-emerald-50 text-emerald-900'
+          : 'border-slate-200 bg-white text-slate-700'
+    }`;
+    node.textContent = text;
+  }
+
+  /**
+   * One settings write. Key presence is the instruction, so the patch carries
+   * ONLY what changed: an explicit null clears the address, an absent key
+   * leaves that field alone. Returns the fresh settings block, or null once the
+   * reason has been shown.
+   */
+  async function writeBrandSettings(patch: Record<string, unknown>): Promise<NotifySettings | null> {
+    let res: Record<string, any>;
+    try {
+      res = await rpc<Record<string, any>>('set_partner_brand_settings', { p: patch });
+    } catch {
+      notifyNote('warn', 'That did not go through, so nothing changed. Reload the page and try again.');
+      return null;
+    }
+    if (res.status === 'invalid') {
+      notifyNote('warn', settingsErrorLines(res.errors).join(' '));
+      return null;
+    }
+    if (res.status !== 'ok') {
+      notifyNote('warn', settingsStatusText(res.status));
+      return null;
+    }
+    return (res.settings ?? null) as NotifySettings | null;
+  }
+
+  function renderBrandEvents(s: NotifySettings): void {
+    const wrap = el('bn-events');
+    wrap.innerHTML = '';
+    for (const spec of BRAND_EVENTS) {
+      const row = document.createElement('div');
+
+      const label = document.createElement('label');
+      label.className = 'flex items-start gap-3 text-sm font-medium';
+      const box = document.createElement('input');
+      box.type = 'checkbox';
+      box.className = 'mt-0.5 h-4 w-4';
+      // The RAW switch, which is what a toggle renders. The master is shown
+      // separately rather than folded in, so the switch never lies about what
+      // the partner chose.
+      box.checked = rawSwitch(s, spec.event);
+      box.setAttribute('aria-label', spec.label);
+      label.appendChild(box);
+      const text = document.createElement('span');
+      text.textContent = spec.label;
+      label.appendChild(text);
+      row.appendChild(label);
+
+      const hint = document.createElement('p');
+      hint.className = 'ml-7 mt-1 text-xs text-slate-500';
+      hint.textContent = spec.hint;
+      row.appendChild(hint);
+
+      // Lit but not sending: the master is off. The switch stays visibly on and
+      // says so, with the master control right above it.
+      if (switchIsLitButOff(s, spec.event)) {
+        const muted = document.createElement('p');
+        muted.className = 'ml-7 mt-1 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-900';
+        muted.textContent = mutedEventText('brand');
+        row.appendChild(muted);
+      }
+
+      box.addEventListener('change', async () => {
+        const wanted = box.checked;
+        box.disabled = true;
+        const next = await writeBrandSettings({ [spec.key]: wanted });
+        box.disabled = false;
+        if (!next) {
+          box.checked = !wanted;
+          return;
+        }
+        paintBrandNotify(next);
+        notifyNote('good', wanted ? `On: ${spec.label.toLowerCase()}.` : `Off: ${spec.label.toLowerCase()}.`);
+      });
+
+      wrap.appendChild(row);
+    }
+  }
+
+  function paintBrandNotify(s: NotifySettings): void {
+    el<HTMLInputElement>('bn-email').value = s.contact_email ?? '';
+    show('bn-email-clear', s.contact_email != null);
+    el('bn-source').textContent = contactSourceText(s, 'brand');
+    el<HTMLInputElement>('bn-master').checked = s.notifications_enabled === true;
+    renderBrandEvents(s);
+    el('bn-updated').textContent = s.updated_at
+      ? `Last changed ${fmtDateTime(s.updated_at)}.`
+      : 'Not changed yet, so these are the starting settings.';
+  }
+
+  async function saveBrandAddress(value: string | null): Promise<void> {
+    const button = el<HTMLButtonElement>('bn-email-save');
+    button.disabled = true;
+    const next = await writeBrandSettings({ contact_email: value });
+    button.disabled = false;
+    if (!next) return;
+    paintBrandNotify(next);
+    notifyNote(
+      'good',
+      value == null
+        ? 'Address cleared. Brand notices follow the fallback now, named below the field.'
+        : 'Address saved. Brand notices go there from now on.',
+    );
+  }
+
+  el('bn-email-save').addEventListener('click', () => {
+    const value = el<HTMLInputElement>('bn-email').value.trim();
+    void saveBrandAddress(value === '' ? null : value);
+  });
+
+  el('bn-email-clear').addEventListener('click', () => void saveBrandAddress(null));
+
+  el<HTMLInputElement>('bn-master').addEventListener('change', async () => {
+    const box = el<HTMLInputElement>('bn-master');
+    const wanted = box.checked;
+    box.disabled = true;
+    const next = await writeBrandSettings({ notifications_enabled: wanted });
+    box.disabled = false;
+    if (!next) {
+      box.checked = !wanted;
+      return;
+    }
+    paintBrandNotify(next);
+    notifyNote(
+      'good',
+      wanted
+        ? 'Brand notices are on again. Anything switched on below is sending.'
+        : 'Brand notices are paused. Your locations are unchanged, and the address above is kept.',
+    );
+  });
+
   async function load(): Promise<void> {
     show('brand-loading', true);
     const brand = await rpc<Record<string, any>>('get_my_partner_brand');
@@ -291,6 +537,18 @@ import Portal from '../layouts/Portal.astro';
     const liveLocations = (live.locations ?? []) as Array<Record<string, any>>;
     renderLocations(liveLocations);
     if (!canEdit) applyReadOnly(liveLocations.length, Number(live.location_count ?? liveLocations.length));
+
+    // Brand settings are brand-admin only on the read too, so a location
+    // manager gets `settings: null` and sees no section at all rather than an
+    // empty form. can_edit_brand_settings is presentation: the write is
+    // refused with forbidden_brand whatever this page shows.
+    const settings = (brand.settings ?? null) as NotifySettings | null;
+    if (settings && brand.can_edit_brand_settings !== false) {
+      paintBrandNotify(settings);
+      show('brand-notify', true);
+    } else {
+      show('brand-notify', false);
+    }
   }
 
   el('perk-add').addEventListener('click', () => {

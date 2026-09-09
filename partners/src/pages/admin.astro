@@ -93,6 +93,72 @@ import Portal from '../layouts/Portal.astro';
   const esc = (v: unknown): string =>
     String(v ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
 
+  // Where the decision on this queue entry would actually land (Decision
+  // 6.142). admin_partner_review_queue asks partner_notification_recipients
+  // for the two BRAND events, so this is the resolved answer, not the stored
+  // intent: the address chain followed and the master ANDed in. An EMPTY
+  // recipients list with a named suppression is the case worth seeing before
+  // clicking, so it is called out rather than left blank.
+  const ROUTE_LABEL: Record<string, string> = {
+    draft_approved: 'Approve',
+    draft_changes_requested: 'Request changes',
+  };
+  const SUPPRESS_TEXT: Record<string, string> = {
+    notifications_disabled: 'notifications are off entirely at that level',
+    event_switch_off: 'this notice is switched off',
+    no_address: 'no address resolves',
+    venue_retired: 'the venue is closed',
+    venue_archived: 'the venue is archived',
+  };
+  const SOURCE_TEXT: Record<string, string> = {
+    venue_override: "the venue's own address",
+    brand_override: "the brand's address",
+    brand_login: 'a brand login sign-in address',
+  };
+  const ROUTE_STATUS_TEXT: Record<string, string> = {
+    unknown_event: 'this event is not in the routing vocabulary',
+    unknown_brand: 'the brand could not be resolved',
+    venue_required: 'this event needs a venue and none was given',
+    venue_not_applicable: 'this event is brand-shaped and was given a venue',
+    unknown_venue: 'the venue could not be resolved',
+    venue_brand_mismatch: 'the venue belongs to another brand',
+  };
+
+  function routing(entry: Record<string, any>): string {
+    const routes = (entry.notification_routing ?? {}) as Record<string, any>;
+    const settings = (entry.brand_settings ?? null) as Record<string, any> | null;
+    const rows = Object.keys(ROUTE_LABEL).map((event) => {
+      const r = (routes[event] ?? {}) as Record<string, any>;
+      const status = String(r.status ?? 'missing');
+      const recipients = (r.recipients ?? []) as Array<Record<string, any>>;
+      const suppressed = (r.suppressed ?? []) as Array<Record<string, any>>;
+      const why = suppressed
+        .map((s) => `${esc(s.scope)}: ${esc(SUPPRESS_TEXT[String(s.reason)] ?? String(s.reason).replaceAll('_', ' '))}`)
+        .join(' · ');
+      if (status !== 'ok') {
+        return `<tr class="bg-rose-50"><td class="py-1 pr-3 text-xs uppercase tracking-wide text-slate-500">${esc(ROUTE_LABEL[event])}</td>
+          <td class="py-1 text-rose-800">Not routable: ${esc(ROUTE_STATUS_TEXT[status] ?? status)}</td></tr>`;
+      }
+      if (recipients.length === 0) {
+        return `<tr class="bg-amber-50"><td class="py-1 pr-3 text-xs uppercase tracking-wide text-slate-500">${esc(ROUTE_LABEL[event])}</td>
+          <td class="py-1 text-amber-900">Nobody would be mailed${why ? ` (${why})` : ''}.</td></tr>`;
+      }
+      const who = recipients
+        .map((x) => `${esc(x.address)} <span class="text-xs text-slate-500">(${esc(x.scope)}, ${esc(SOURCE_TEXT[String(x.source)] ?? String(x.source))})</span>`)
+        .join('<br />');
+      return `<tr><td class="py-1 pr-3 align-top text-xs uppercase tracking-wide text-slate-500">${esc(ROUTE_LABEL[event])}</td>
+        <td class="py-1">${who}${why ? `<span class="block text-xs text-slate-500">also: ${why}</span>` : ''}</td></tr>`;
+    });
+    const intent = settings
+      ? `Stored intent: master ${settings.notifications_enabled ? 'on' : 'off'} · approved ${settings.notify_draft_approved ? 'on' : 'off'} · changes ${settings.notify_draft_changes_requested ? 'on' : 'off'} · address ${settings.contact_email ? esc(settings.contact_email) : 'none set, so it inherits'}`
+      : 'Stored intent unavailable.';
+    return `<div class="mt-4 rounded-md border border-slate-200 bg-slate-50 p-3">
+      <p class="text-xs uppercase tracking-wide text-slate-500">Where your decision lands</p>
+      <table class="mt-2 w-full text-sm"><tbody>${rows.join('')}</tbody></table>
+      <p class="mt-2 text-xs text-slate-500">${intent}</p>
+    </div>`;
+  }
+
   // One queue entry is the brand's single draft (Decision 6.138): the brand
   // section (applied only when brand_touched), the logo, and a `locations`
   // array whose entries edit a live venue (kind 'edit') or add one ('new').
@@ -160,6 +226,8 @@ import Portal from '../layouts/Portal.astro';
       ? `<h3 class="mt-4 text-xs uppercase tracking-wide text-slate-500">Locations (${locations.length})</h3>${locationBlocks.join('')}`
       : '<p class="mt-3 text-sm text-slate-500">No location changes</p>';
 
+    const routingBlock = routing(entry);
+
     card.innerHTML = `
       <div class="flex items-start justify-between gap-4">
         <div>
@@ -170,6 +238,7 @@ import Portal from '../layouts/Portal.astro';
       </div>
       ${brandBlock}
       ${locationsBlock}
+      ${routingBlock}
       <div class="mt-4 flex flex-wrap items-center gap-2">
         <input data-note class="w-64 rounded-md border border-slate-300 px-3 py-1.5 text-sm" placeholder="Note to the partner (required to request changes)" />
         <button data-approve class="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-emerald-500">Approve</button>

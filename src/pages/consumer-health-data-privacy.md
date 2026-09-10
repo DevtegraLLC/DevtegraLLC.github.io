@@ -7,6 +7,7 @@ description: "How FitCreature handles consumer health data under the Washington 
 # Consumer Health Data Privacy Policy
 
 Effective Date: July 3, 2026
+Last Updated: September 10, 2026
 
 This Consumer Health Data Privacy Policy is provided by Devtegra, LLC ("Devtegra," "we," "us," or "our") under the Washington My Health My Data Act. It applies to consumer health data handled by our FitCreature mobile application.
 
@@ -31,6 +32,8 @@ FitCreature collects the following categories of consumer health data. Except wh
 ## 3. Categories of Consumer Health Data We Share
 
 None. We do not share consumer health data with third parties or affiliates, and we do not sell consumer health data. We use service providers that process data on our behalf under contractual restrictions (our backend hosting provider stores the derived scores and signals described above); they are not permitted to use it for their own purposes.
+
+Partner businesses whose locations you add as a friend in the app do not receive any of the consumer health data listed in Section 1. They see only your creature's name and number, its creature type, and its position on their member board, never your training-streak length, your derived scores, or anything about your workouts or health.
 
 ## 4. Third Parties and Affiliates With Whom We Share Consumer Health Data
 

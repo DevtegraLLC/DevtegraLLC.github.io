@@ -7,7 +7,7 @@ description: "The terms that govern your use of Devtegra's website and mobile ap
 # Terms of Service
 
 Effective Date: May 28, 2026
-Last Updated: August 13, 2026
+Last Updated: September 10, 2026
 
 Welcome to Devtegra. These Terms of Service ("Terms") are a binding agreement between you and Devtegra, LLC ("Devtegra," "we," "us," or "our") governing your use of our website at devtegra.com and our mobile applications, including FitCreature (collectively, the "Services").
 
@@ -42,6 +42,14 @@ Any health and fitness information shown in the app, including data read from Ap
 ### 3.2 Availability
 
 We work to keep the Services available, but we do not guarantee uninterrupted access. The Services may be temporarily unavailable for maintenance, updates, or reasons outside our control. We may modify, suspend, or discontinue all or part of the Services at any time.
+
+### 3.3 Partner Businesses
+
+FitCreature can show cards for partner businesses, such as gyms, with offers you can use at their locations. Partner businesses are independent third parties. Each business is responsible for its own offers, products, services, and premises, and honors its offers only on the terms and at the locations it lists. We review partner content before it appears in the app, but we do not guarantee any offer.
+
+You can add a partner location as a friend. If you do, the business can see your creature's name and number and creature type, can accept or remove you, and can show a member board with your creature's name, number, type, and position on screens at that location. You can remove the location from your friends list at any time, which takes you off its members list and its board. Sections 5.3 and 5.4 of our Privacy Policy explain what is shared.
+
+A partner may close a location. When it does, the location stops appearing in the app, its code can no longer be redeemed, and it is marked Closed in your friends list for a limited period (currently 30 days) before it is removed. Offers that applied only at a closed location can no longer be used. Rewards you already earned in the app stay in your account.
 
 ## 4. Acceptable Use
 

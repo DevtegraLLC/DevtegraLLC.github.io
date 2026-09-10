@@ -180,6 +180,15 @@ const screenBundle = [...screenHtml.matchAll(/<script[^>]+src="([^"]+)"/g)]
 ok(!/>\s*Level\s*</.test(screenHtml) && !/>\s*Streak\s*</.test(screenHtml), 'screen preview has no Level or Streak column');
 ok(!screenBundle.includes('.streak') && !screenBundle.includes('.level'), 'screen preview renders no level or streak field');
 
+// Accept and remove rebuild the board in the same transaction (migration
+// 20260909000000), so the Members page must not tell partners to wait for a
+// daily refresh.
+const membersHtml = fs.readFileSync('dist/members/index.html', 'utf8');
+const membersBundle = [...membersHtml.matchAll(/<script[^>]+src="([^"]+)"/g)]
+  .map((m) => fs.readFileSync(path.join('dist', m[1].replace(/^\//, '')), 'utf8'))
+  .join('\n');
+ok(!membersHtml.includes('daily refresh') && !membersBundle.includes('daily refresh'), 'members page no longer says the board waits for a daily refresh');
+
 // Creature stills the board renders ride the brand library.
 for (const s of ['alieo', 'brutoh', 'chi', 'karmuth', 'wolfie']) {
   ok(fs.existsSync(`dist/assets/brand/creatures/fc_creature_${s}_front.png`), `creature still present: ${s}`);

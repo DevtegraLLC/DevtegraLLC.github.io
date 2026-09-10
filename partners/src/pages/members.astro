@@ -6,7 +6,8 @@ import Portal from '../layouts/Portal.astro';
   <h1 class="text-2xl font-bold tracking-tight">Members</h1>
   <p class="mt-2 text-sm text-slate-600">
     Players who add your location in FitCreature appear here. Accepting a request puts their creature on
-    your board; removing takes it off at the next daily refresh.
+    your board right away, and removing someone takes them off it right away. A lobby screen that is
+    already showing the board picks up changes at its next hourly refresh.
   </p>
 
   <div id="loc-wrap" hidden class="mt-4">
@@ -46,7 +47,7 @@ import Portal from '../layouts/Portal.astro';
       Members <span id="m-member-count" class="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-700"></span>
     </h2>
     <p id="m-members-empty" class="mt-2 text-sm text-slate-500" hidden>
-      No members yet. Once players join, their creatures show on your board after the next daily refresh.
+      No members yet. When you accept a player, their creature shows on your board right away.
     </p>
     <ul id="m-members" class="mt-2 divide-y divide-slate-100 rounded-lg border border-slate-200 bg-white"></ul>
   </div>
@@ -194,7 +195,7 @@ import Portal from '../layouts/Portal.astro';
     memberList.hidden = members.length === 0;
     for (const m of members) {
       const remove = button('Remove', 'border border-slate-300 hover:bg-slate-100', async () => {
-        if (!confirm(`Remove ${m.handle} from this location? Their creature leaves the board at the next daily refresh.`)) return;
+        if (!confirm(`Remove ${m.handle} from this location? Their creature leaves your board right away.`)) return;
         await act('partner_remove_member', m.friendship_id, `${m.handle} removed.`);
       });
       memberList.appendChild(row(m, `Member since ${fmtDate(m.since)}`, [remove]));

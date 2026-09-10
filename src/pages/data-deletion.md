@@ -7,7 +7,7 @@ description: "How to delete your FitCreature account and the data associated wit
 # Data Deletion Request
 
 Effective Date: May 28, 2026
-Last Updated: July 3, 2026
+Last Updated: September 10, 2026
 
 You have the right to delete your account and your personal data at any time. This page explains how.
 
@@ -40,7 +40,7 @@ When you submit a verified deletion request, we will delete from our active syst
 - Your account and profile information (username, display name, email, and any password hash)
 - Your creature, battle stats, currency balances, cosmetic inventory, and season progress
 - Your Gym Zone memberships
-- Your social connections within the app, and any subscription gift you granted or received
+- Your social connections within the app, including any partner business locations you added as a friend, and any subscription gift you granted or received. Leaving a partner location this way takes your creature off that location's members list and member board at once; a screen already showing the board at the location picks up the change at its next refresh, within about an hour
 - Your subscription records and push notification tokens
 - Your in-app feedback
 

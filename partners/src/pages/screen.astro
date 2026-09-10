@@ -73,13 +73,13 @@ import Portal from '../layouts/Portal.astro';
         <a class="underline" href="/members">Manage members</a>.
       </p>
       <p id="s-board-empty" hidden class="mt-4 text-sm text-slate-500">
-        Nothing on the board yet. Members appear after the first daily refresh following their acceptance.
+        Nothing on the board yet. Members appear here as soon as you accept them.
       </p>
       <div class="mt-4 overflow-x-auto">
         <table id="s-board" class="w-full min-w-[24rem] text-sm">
           <thead>
             <tr class="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500">
-              <th class="py-2 pr-4">#</th><th class="py-2 pr-4">Creature</th><th class="py-2 pr-4">Level</th><th class="py-2">Streak</th>
+              <th class="py-2 pr-4">#</th><th class="py-2">Creature</th>
             </tr>
           </thead>
           <tbody></tbody>
@@ -110,8 +110,6 @@ import Portal from '../layouts/Portal.astro';
     handle: string;
     creature_name: string;
     creature_type: string | null;
-    level: number;
-    streak: number;
   }
 
   let active: PartnerLocation | null = null;
@@ -183,13 +181,7 @@ import Portal from '../layouts/Portal.astro';
       handle.className = 'font-mono';
       handle.textContent = r.handle;
       who.appendChild(handle);
-      const level = document.createElement('td');
-      level.className = 'py-2 pr-4';
-      level.textContent = String(r.level);
-      const streak = document.createElement('td');
-      streak.className = 'py-2';
-      streak.textContent = `${r.streak} day${r.streak === 1 ? '' : 's'}`;
-      tr.append(rank, who, level, streak);
+      tr.append(rank, who);
       body.appendChild(tr);
     }
   }

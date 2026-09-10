@@ -5,8 +5,10 @@
 // `config.refetch_ms`, and cycles the config-driven slides (board, top
 // creatures, join QR, perk), skipping any slide with nothing to show. A TV
 // browser opens it once and leaves it running; nothing here ever needs a
-// click. Everything rendered is data a member already publishes to every
-// friend in the app (handle, creature, level, streak), never a user id.
+// click. It shows only what a member chose to share by friending the venue:
+// their handle, creature name and species, and a position on the board
+// (Decision 6.144). No level, streak, strength, or anything that explains
+// the order, and never a user id.
 ---
 
 <!doctype html>
@@ -118,7 +120,6 @@
   .board img, .board .egg { height: 7vh; width: 7vh; object-fit: contain; flex: none; }
   .board .egg { display: flex; align-items: center; justify-content: center; font-size: 5vh; }
   .board .name { flex: 1; font-weight: 700; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-  .board .meta { color: #cbd5e1; font-size: 2.8vh; white-space: nowrap; }
 
   .cards { display: flex; gap: 2vw; align-items: stretch; justify-content: center; }
   .card {
@@ -136,7 +137,6 @@
   .card img, .card .egg { height: 22vh; width: 22vh; object-fit: contain; }
   .card .egg { display: flex; align-items: center; justify-content: center; font-size: 14vh; }
   .card .cname { margin-top: 2vh; font-size: 3.4vh; font-weight: 800; max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-  .card .cmeta { margin-top: 0.8vh; font-size: 2.6vh; color: #cbd5e1; }
 
   .join { flex-direction: row; align-items: center; gap: 5vw; }
   .joincard { background: #fff; border-radius: 3vh; padding: 3vh; flex: none; }
@@ -157,7 +157,7 @@
   import { creatureStill } from '../lib/portal';
 
   type SlideKey = 'board' | 'top5' | 'join' | 'perk';
-  interface Row { rank: number; creature_name: string; handle: string; creature_type: string | null; level: number; streak: number }
+  interface Row { rank: number; creature_name: string; handle: string; creature_type: string | null }
   interface Perk { title: string; description: string | null; discount_code: string | null }
   interface Payload {
     ok: boolean;
@@ -234,10 +234,7 @@
       const name = document.createElement('span');
       name.className = 'name';
       name.textContent = r.creature_name;
-      const meta = document.createElement('span');
-      meta.className = 'meta';
-      meta.textContent = `Lv ${r.level} · ${r.streak} day streak`;
-      li.append(rank, eggOr(r.creature_type, 'egg'), name, meta);
+      li.append(rank, eggOr(r.creature_type, 'egg'), name);
       list.appendChild(li);
     }
   }
@@ -255,10 +252,7 @@
       const name = document.createElement('p');
       name.className = 'cname';
       name.textContent = r.creature_name;
-      const meta = document.createElement('p');
-      meta.className = 'cmeta';
-      meta.textContent = `Level ${r.level} · ${r.streak} day streak`;
-      card.append(badge, eggOr(r.creature_type, 'egg'), name, meta);
+      card.append(badge, eggOr(r.creature_type, 'egg'), name);
       wrap.appendChild(card);
     }
   }

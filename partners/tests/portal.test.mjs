@@ -162,6 +162,24 @@ ok(displayHtml.includes('robots') && displayHtml.includes('noindex'), 'display p
 for (const slide of ['slide-board', 'slide-top5', 'slide-join', 'slide-perk']) {
   ok(displayHtml.includes(`id="${slide}"`), `display slide: ${slide}`);
 }
+// Decision 6.144: a partner board shows a position, a handle and a species,
+// and nothing that explains the order. No level, streak or strength on the
+// public lobby screen or on the portal's screen preview.
+for (const [label, needle] of [
+  ['level field', '.level'],
+  ['streak field', '.streak'],
+  ['streak copy', 'day streak'],
+  ['level copy', 'Lv '],
+]) {
+  ok(!displayBundle.includes(needle), `lobby screen renders no ${label}`);
+}
+const screenHtml = fs.readFileSync('dist/screen/index.html', 'utf8');
+const screenBundle = [...screenHtml.matchAll(/<script[^>]+src="([^"]+)"/g)]
+  .map((m) => fs.readFileSync(path.join('dist', m[1].replace(/^\//, '')), 'utf8'))
+  .join('\n');
+ok(!/>\s*Level\s*</.test(screenHtml) && !/>\s*Streak\s*</.test(screenHtml), 'screen preview has no Level or Streak column');
+ok(!screenBundle.includes('.streak') && !screenBundle.includes('.level'), 'screen preview renders no level or streak field');
+
 // Creature stills the board renders ride the brand library.
 for (const s of ['alieo', 'brutoh', 'chi', 'karmuth', 'wolfie']) {
   ok(fs.existsSync(`dist/assets/brand/creatures/fc_creature_${s}_front.png`), `creature still present: ${s}`);

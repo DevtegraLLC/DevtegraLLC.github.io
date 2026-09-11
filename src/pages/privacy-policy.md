@@ -7,7 +7,7 @@ description: "How Devtegra collects, uses, and shares information across devtegr
 # Privacy Policy
 
 Effective Date: May 28, 2026
-Last Updated: September 10, 2026
+Last Updated: September 11, 2026
 
 This Privacy Policy describes how Devtegra, LLC ("Devtegra," "we," "us," or "our") collects, uses, and shares information when you use our websites at devtegra.com (including our partner portal at partners.devtegra.com) and our mobile applications, including FitCreature (collectively, the "Services").
 
@@ -56,7 +56,7 @@ We never use any health data for advertising, marketing, or data-mining, and we 
 When you use the Services, the following is sent to and stored on our servers:
 
 - Battle-stat scores. Your device computes eight battle-stat scores from your training, each a general rating between 0 and 1 (for example, an endurance rating), plus which stats are currently active. Only these derived scores are sent to our servers, where they are used to pair you with battle opponents and to run battles. The scores cannot be turned back into your workouts, health data, or any underlying measurement. Battle matchmaking never uses your location.
-- Progress signals. So the game can grant rewards without reading your health data, the app sends small derived signals: your current and longest training-streak length, whether a given day had a workout, progress numbers for an active challenge, dates bridged by a streak freeze, reward claims (for example, that you met your daily move goal, completed a daily quest, or finished watching a rewarded ad), and the milestone events shown in your friends' activity feeds (for example, that you set a new personal record). These signals never include your workout contents, exercise names, health measurements, or body data.
+- Progress signals. So the game can grant rewards without reading your health data, the app sends small derived values: your current and longest training-streak length and the date of your most recent workout; whether a given day had a workout, and which days of the current week counted as training days; the number of workout entries you logged on a given day, used to award workout XP; while your creature is still an egg, the number of days on which you finished a workout, used to hatch it; dates bridged by a streak freeze; which achievements you have unlocked and when; progress numbers for an active challenge, including whether you met a weekly sleep, step, or body-logging goal (for example, how many nights you slept at least 7 hours, on how many rest days you reached your step goal, or whether you logged a body weight that week); reward claims (for example, that you met your daily move goal, completed a daily quest, created or followed a planned workout, or finished watching a rewarded ad); and the milestone events shown in your friends' activity feeds (for example, that you set a new personal record). These signals never include your workout contents, exercise names, weights, or health or body measurements.
 - Approximate location (optional, off by default). If you enable location, your device first snaps the GPS fix to a grid of roughly 150 meters as a temporary on-device step, then converts it into a coarse area code covering an area roughly 5 kilometers across. Only that coarse area code is sent to and stored on our servers. We use it to place you in a regional Gym Zone and to run regional leaderboards. Once you have been placed in a regional Gym Zone, the app stops sending this area code; no location signal leaves your device again unless you need to be placed in a zone again. Your exact GPS coordinates are never stored or transmitted, battle matchmaking never uses your location, and no business or advertiser ever receives your location from us.
 - Region selection. When you set or change your Gym Zone region by typing a city or zip code, the text you enter is sent to our mapping provider (OpenStreetMap) to find your general area. We store only the resulting approximate zone, not the city or zip you typed.
 - Push notification token. When you enable push notifications, your device is assigned a registration token (a device-level identifier) through Firebase Cloud Messaging (a Google service); on Apple devices, notifications are relayed through Apple's Push Notification service (APNs). This token is stored on our servers and associated with your account, and we use it solely to deliver notifications you have enabled, such as battle results, season updates, and account alerts. We never use it to track you across apps or for advertising. You can disable notifications at any time in your device settings.
@@ -76,7 +76,7 @@ The following either never leaves your device or is never collected at all:
 - Precise GPS coordinates. Your device converts any location into a coarse, approximate-area code before anything leaves the device. Your exact coordinates are never stored or transmitted.
 - Your login token. Held in your device's secure storage (iOS Keychain or Android Keystore-backed storage); it is never uploaded to our servers.
 
-Because this data exists only on your device, it is not stored on our servers and cannot be restored by us if your device is lost. It is included in your device's encrypted backup (iCloud or Android backup) if you have that enabled; restoring that backup restores this data.
+Because this data exists only on your device, it is not stored on our servers and cannot be restored by us if your device is lost. If you have your device's encrypted backup (iCloud or Android backup) turned on, it includes the app's on-device database (your workout log, template library, equipment-setup preferences, health data, and body metrics) and your exercise photos, and restoring that backup brings them back. Progress photos are left out of device backups, so a restore does not bring them back. Your login token is not restored to a new device: Android backups leave it out, and on iOS it can be restored only to the same device it was backed up from. After restoring onto a new device, you sign in again.
 
 ## 4. How We Use Your Information
 
@@ -128,7 +128,7 @@ Some information is visible to other FitCreature users by design:
 
 - Your username, display name, creature appearance, and public profile stats are visible on leaderboards, battle recaps, and friend lists.
 - If you add a partner business's location as a friend in the app and the business accepts you, your creature can appear on that location's member board. The business can show the board on screens at the location, where anyone there can see it. The board lists a limited number of members (currently 20) and shows each one's position, creature name and number (for example, Blaze#0042), and creature type, along with how many members the location has. Members are placed in order of battles won over the past seven days, and ties go to whoever has been a member of that location longer. The board never shows your username, display name, email, level, streak, stats, or number of wins. It is updated at least once a day and whenever a member joins or leaves. If you remove the location from your friends list, block it, or delete your account, you come off its board at once; a screen already showing the board picks up the change at its next refresh, within about an hour.
-- Your Gym Zone association is visible to users in the same zone, unless you hide it in settings.
+- Your Gym Zone association is visible to users in the same zone.
 - Your friends may see milestone events in their activity feed, for example that you set a new personal record or extended a training streak. These events never name the exercise and never include weights, measurements, or any health data.
 - Your exact workout contents (specific exercises, sets, weights, reps) are never visible to other users.
 
@@ -178,7 +178,7 @@ We use industry-standard safeguards to protect your data, which may include:
 
 - Encryption of communication between the app and our servers in transit (HTTPS/TLS).
 - Encryption of data stored on our backend at rest.
-- Storage of authentication tokens in your device's secure storage (Keychain on iOS, EncryptedSharedPreferences on Android).
+- Storage of authentication tokens in your device's secure storage (Keychain on iOS, Android Keystore-backed encrypted storage on Android).
 - Row-Level Security on our database so users can access only their own data.
 - Hashing of passwords; we do not store plaintext passwords.
 

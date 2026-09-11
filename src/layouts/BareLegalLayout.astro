@@ -3,8 +3,9 @@ import Base from './Base.astro';
 
 // Bare legal layout for the Consumer Health Data Privacy Policy page only.
 // The Washington My Health My Data Act FAQ (Attorney General, Question 4) says
-// that policy is a separate and distinct page that may not contain information
-// the act does not require. So this layout renders the policy text alone: no
+// the policy must be "a separate and distinct link" on the homepage and "may
+// not contain additional information not required under the My Health My Data
+// Act." So this layout renders the policy text alone: no
 // header navigation and no footer legal navigation. Every other page keeps
 // Base's footer, which links to this page.
 const { frontmatter } = Astro.props;

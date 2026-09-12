@@ -415,6 +415,56 @@ for (const reason of ['notifications_disabled', 'event_switch_off', 'no_address'
   ok(adminBundle.includes(reason), `review queue names the suppression: ${reason}`);
 }
 
+// ===========================================================================
+// Decision 6.152 / BUG_LOG B95: a partner login is deactivated, never deleted.
+// The operator console closes a login through admin_deactivate_partner_login
+// (superadmin, audited) behind a two-step confirm that names every
+// consequence, and the sign-in page says plainly when a login is closed.
+// ===========================================================================
+ok(adminBundle.includes('admin_deactivate_partner_login'), 'console calls admin_deactivate_partner_login');
+ok(adminBundle.includes('p_partner_account_id') && adminBundle.includes('p_note'),
+  'deactivation passes the two parameters the RPC defines');
+ok(adminBundle.includes('brand_has_active_admin') && adminBundle.includes('has no active brand admin left'),
+  'console warns when the brand has no active brand admin left');
+for (const status of ['already_deactivated', 'not_found', 'admin_forbidden']) {
+  ok(adminBundle.includes(status), `deactivation outcome handled: ${status}`);
+}
+ok(adminBundle.includes('Deactivated'), 'a deactivated row carries the Deactivated badge');
+ok(adminBundle.includes('can no longer be suspended or reactivated'),
+  "console answers admin_set_partner_status's 409 deactivated");
+ok(adminHtml.includes('id="deact-overlay"') && adminHtml.includes('id="deact-note"'),
+  'console carries the deactivate confirm panel with the audit note');
+for (const [label, needle] of [
+  ['permanent', 'It is permanent'],
+  ['sign-in and every session end at once', 'every open session on this login ends at'],
+  ['venue access is removed', 'Its venue access is removed'],
+  ['acceptance records are kept', 'Its agreement acceptance records are kept'],
+  ['coming back needs a different sign-in address', 'a different sign-in address'],
+]) {
+  ok(adminHtml.includes(needle), `deactivate confirm says: ${label}`);
+}
+ok(adminBundle.includes('confirm(') && adminBundle.includes('for good'), 'deactivating takes a second confirm');
+// Operator only: no partner-facing page reaches for it.
+for (const page of PAGES.filter((pg) => pg !== 'admin/index.html')) {
+  const html = fs.readFileSync(path.join('dist', page), 'utf8');
+  const bundles = [...html.matchAll(/<script[^>]+src="([^"]+)"/g)]
+    .map((m) => fs.readFileSync(path.join('dist', m[1].replace(/^\//, '')), 'utf8'))
+    .join('\n');
+  ok(!html.includes('admin_deactivate_partner_login') && !bundles.includes('admin_deactivate_partner_login'),
+    `no deactivation call on ${page}`);
+}
+// Sign-in: GoTrue refuses a banned (deactivated) login with user_banned. The
+// page's script may be inlined, so the HTML is read alongside its bundles.
+const signInHtml = fs.readFileSync('dist/index.html', 'utf8');
+const signInCode = signInHtml + [...signInHtml.matchAll(/<script[^>]+src="([^"]+)"/g)]
+  .map((m) => fs.readFileSync(path.join('dist', m[1].replace(/^\//, '')), 'utf8'))
+  .join('\n');
+ok(signInCode.includes('user_banned'), 'sign-in reads the user_banned error code');
+ok(signInCode.includes('This login has been closed. Contact us at contact.us@devtegra.com if you think this is a mistake.'),
+  'sign-in says plainly when a login is closed');
+ok(signInCode.includes('mailto:'), 'the contact address on the closed-login line is a link');
+ok(signInCode.includes('sign-in didn'), 'every other sign-in refusal keeps the generic line');
+
 // The report page must carry the not-counted install framing (annex §9.5:
 // never present an Android-only number as a total, never estimate).
 ok(all.includes('cannot be counted') || all.includes('Not counted'), 'installs framed as not counted');

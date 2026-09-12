@@ -208,7 +208,12 @@ import Portal from '../layouts/Portal.astro';
     return `${loginName(target)} is deactivated, and ${brandName(target)} has no active brand admin left. Until one is active again, ${NO_ADMIN_EFFECT}. If the partnership continues, ${next}`;
   }
 
-  /** A warning above the partners table that stays until the next deactivation opens. */
+  /**
+   * A warning above the partners table. load() clears it on every refresh of
+   * the list, because any later Suspend or Reactivate (reactivating the
+   * suspended brand admin it suggests, say) can make it untrue; the
+   * deactivation handler sets it after its own refresh.
+   */
   function partnersWarning(text: string): void {
     const node = el('ad-partners-note');
     node.textContent = text;
@@ -545,6 +550,7 @@ import Portal from '../layouts/Portal.astro';
 
     const partners = el('ad-partners');
     partners.innerHTML = '';
+    show('ad-partners-note', false);
     partnerRows = body.partners as PartnerRow[];
     for (const p of partnerRows) {
       // Decision 6.152: 'deactivated' is terminal, so the row carries a badge

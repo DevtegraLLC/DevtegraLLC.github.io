@@ -6,7 +6,7 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "test": "astro build && node tests/join_page.test.mjs"
+    "test": "astro build --force && node tests/join_page.test.mjs && node tests/patch_notes_page.test.mjs"
   },
   "dependencies": {
     "@astrojs/sitemap": "^3.4.0",

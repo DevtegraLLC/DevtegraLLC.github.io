@@ -58,6 +58,23 @@ import Portal from '../layouts/Portal.astro';
     if (data.session) location.href = roleHome(data.session);
   });
 
+  // A closed (deactivated) partner login is banned in GoTrue until a far-future
+  // date, and GoTrue refuses its sign-in with the error code user_banned, which
+  // auth-js hands back as error.code. That gets its own line, with the address
+  // as a link; every other refusal keeps the generic one.
+  const CONTACT_ADDRESS = 'contact.us@devtegra.com';
+  const CLOSED_LOGIN_TEXT =
+    'This login has been closed. Contact us at contact.us@devtegra.com if you think this is a mistake.';
+
+  function showClosedLogin(node: HTMLElement): void {
+    const [before, after] = CLOSED_LOGIN_TEXT.split(CONTACT_ADDRESS);
+    const link = document.createElement('a');
+    link.href = `mailto:${CONTACT_ADDRESS}`;
+    link.className = 'underline';
+    link.textContent = CONTACT_ADDRESS;
+    node.replaceChildren(before, link, after);
+  }
+
   el<HTMLFormElement>('login-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const button = el<HTMLButtonElement>('login-submit');
@@ -68,7 +85,11 @@ import Portal from '../layouts/Portal.astro';
     const { data, error } = await supabase().auth.signInWithPassword({ email, password });
     if (error) {
       const node = el('login-error');
-      node.textContent = 'That sign-in didn\'t work. Check the email and password and try again.';
+      if (error.code === 'user_banned') {
+        showClosedLogin(node);
+      } else {
+        node.textContent = 'That sign-in didn\'t work. Check the email and password and try again.';
+      }
       node.hidden = false;
       button.disabled = false;
       return;

@@ -18,6 +18,7 @@ import Portal from '../layouts/Portal.astro';
     <div id="ad-queue" class="mt-3 space-y-4"></div>
 
     <h2 class="mt-10 text-sm font-semibold">Partners</h2>
+    <div id="ad-partners-note" hidden class="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900"></div>
     <div class="mt-3 overflow-x-auto">
       <table class="w-full min-w-[40rem] text-sm">
         <thead>
@@ -84,14 +85,197 @@ import Portal from '../layouts/Portal.astro';
       </table>
     </div>
   </div>
+
+  {/* Step one of the two-step deactivate (Decision 6.152): every consequence is
+      named before anything happens. Step two is the confirm on the button. */}
+  <div id="deact-overlay" hidden class="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/40 p-4">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="deact-title"
+      class="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl border border-slate-200 bg-white p-6 shadow-xl"
+    >
+      <h2 id="deact-title" class="text-base font-semibold">Deactivate this login</h2>
+      <p id="deact-sub" class="mt-1 text-xs text-slate-500"></p>
+
+      <p class="mt-4 text-sm text-slate-700">Deactivating a login does all of this at once:</p>
+      <ul class="mt-2 list-disc space-y-2 pl-5 text-sm text-slate-700">
+        <li>
+          It is permanent. A deactivated login cannot be reactivated, and there is no undo.
+        </li>
+        <li>
+          Sign-in ends now. The password stops working, and every open session on this login ends at
+          the same moment.
+        </li>
+        <li>
+          Its venue access is removed: every venue it reached, and its brand admin role if it held one.
+        </li>
+        <li>
+          Its agreement acceptance records are kept, unchanged, as the record of what was signed.
+        </li>
+        <li>
+          Bringing this person back needs a new login under a different sign-in address. This address
+          stays with the records above and cannot be used again.
+        </li>
+      </ul>
+
+      <div id="deact-warning" hidden class="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900"></div>
+
+      <div class="mt-4">
+        <label for="deact-note" class="block text-sm font-medium">Note (optional)</label>
+        <input
+          id="deact-note"
+          type="text"
+          placeholder="Partnership ended, deletion requested by email…"
+          class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+        />
+        <p class="mt-1 text-xs text-slate-500">Kept in the admin audit log with this action.</p>
+      </div>
+
+      <p id="deact-error" hidden class="mt-3 text-sm text-rose-700"></p>
+
+      <div class="mt-5 flex flex-wrap gap-3">
+        <button
+          type="button"
+          id="deact-cancel"
+          class="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium hover:bg-slate-100"
+        >
+          Keep this login
+        </button>
+        <button
+          type="button"
+          id="deact-go"
+          class="rounded-md bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-500 disabled:opacity-50"
+        >
+          Deactivate for good
+        </button>
+      </div>
+    </div>
+  </div>
 </Portal>
 
 <script>
-  import { requireSession, rpc, callFn, callFnJson, el, show, toast, fmtDate } from '../lib/portal';
+  import { requireSession, rpc, callFn, callFnJson, el, show, toast, fmtDate, roleLabel } from '../lib/portal';
 
   // Partner-typed text lands in innerHTML below, so it is escaped first.
   const esc = (v: unknown): string =>
     String(v ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
+
+  // ---------------------------------------------------------------------------
+  // Deactivating a partner login (BUG_LOG B95, Decision 6.152). A partner login
+  // is never deleted: admin_deactivate_partner_login (superadmin only, audited
+  // through admin_assert_and_audit before anything moves) removes every grant,
+  // revokes every session, bans the sign-in and marks the row 'deactivated',
+  // which is terminal. The button sits beside Suspend / Reactivate because the
+  // partners table only renders for a seat the superadmin-gated review queue
+  // answered; the RPC re-checks the tier itself either way.
+  // ---------------------------------------------------------------------------
+  type PartnerRow = Record<string, any>;
+
+  /** The badge a deactivated row carries instead of Suspend / Reactivate. */
+  const DEACTIVATED_BADGE_TEXT = 'Deactivated';
+
+  let partnerRows: PartnerRow[] = [];
+  let deactTarget: PartnerRow | null = null;
+
+  const loginName = (p: PartnerRow): string => String(p.contact_name || p.contact_email || 'this login');
+  const brandName = (p: PartnerRow): string => String(p.brand_name || 'this brand');
+
+  // partner_agreements_current needs an ACTIVE brand admin's acceptance of every
+  // required agreement (Decision 6.145), so a brand with none has every gated
+  // partner action closed for every login on it.
+  const NO_ADMIN_EFFECT =
+    'nobody on the brand can manage its team, and its gated partner actions (submissions, report downloads, print packs, notification changes) are closed for every login on it';
+
+  /** Heads-up in the panel when this login is the brand's last active brand admin. */
+  function lastAdminWarning(p: PartnerRow): string | null {
+    if (p.role !== 'brand_admin' || p.status !== 'active') return null;
+    const another = partnerRows.some(
+      (o) => o.id !== p.id && o.brand_id === p.brand_id && o.status === 'active' && o.role === 'brand_admin',
+    );
+    if (another) return null;
+    return `Going by the list on this page, ${loginName(p)} is the only active brand admin of ${brandName(p)}. Once it is deactivated, the brand has no active brand admin: ${NO_ADMIN_EFFECT} until one is active again.`;
+  }
+
+  /** The warning after a deactivation whose result says brand_has_active_admin is false. */
+  function noAdminLeftText(target: PartnerRow): string {
+    const suspended = partnerRows.find(
+      (o) => o.brand_id === target.brand_id && o.status === 'suspended' && o.role === 'brand_admin',
+    );
+    const next = suspended
+      ? `reactivate ${loginName(suspended)}, a suspended brand admin of this brand, below, or provision a new brand admin login.`
+      : 'provision a new brand admin login for it.';
+    return `${loginName(target)} is deactivated, and ${brandName(target)} has no active brand admin left. Until one is active again, ${NO_ADMIN_EFFECT}. If the partnership continues, ${next}`;
+  }
+
+  /** A warning above the partners table that stays until the next deactivation opens. */
+  function partnersWarning(text: string): void {
+    const node = el('ad-partners-note');
+    node.textContent = text;
+    node.hidden = false;
+    node.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  /** Soft statuses: the server answered, and nothing changed. */
+  const DEACT_STATUS_TEXT: Record<string, string> = {
+    already_deactivated: 'That login was already deactivated, so nothing changed.',
+    not_found: 'That login could not be found, so nothing changed.',
+  };
+
+  /**
+   * A raised error rolled the whole call back, audit row included, so nothing
+   * changed. The one exception is no answer at all, where the call may have
+   * landed before the connection dropped.
+   */
+  function deactRaisedText(message: string): string {
+    if (/admin_forbidden/.test(message)) {
+      return 'This admin seat cannot deactivate logins. It takes a superadmin seat. Nothing changed.';
+    }
+    if (/JWT/i.test(message)) return 'Your session has ended. Sign in again, then retry. Nothing changed.';
+    if (/invalid input syntax for type uuid/i.test(message)) {
+      return 'That login id could not be read. Reload and try again. Nothing changed.';
+    }
+    if (/PGRST202|Could not find the function/i.test(message)) {
+      return 'This backend does not have the deactivation function. Nothing changed.';
+    }
+    // partner_accounts_lifecycle_guard: a session or grant landed mid-call.
+    if (/the grants, the sessions and the sign-in ban/.test(message)) {
+      return 'The login changed while it was being deactivated (a new session or grant landed at the same moment), so the whole step was rolled back and nothing changed. Try again.';
+    }
+    if (/Failed to fetch|NetworkError|Load failed|FetchError/i.test(message)) {
+      return 'No answer came back from the server. Reload the page and check this row before trying again.';
+    }
+    return `Deactivation failed (${message}). Nothing changed.`;
+  }
+
+  function closeDeactivate(): void {
+    deactTarget = null;
+    show('deact-overlay', false);
+  }
+
+  // Step one of two: every consequence, before anything happens.
+  function openDeactivate(p: PartnerRow): void {
+    deactTarget = p;
+    show('ad-partners-note', false);
+    el('deact-title').textContent = `Deactivate ${loginName(p)}?`;
+    el('deact-sub').textContent = [
+      p.contact_email,
+      p.brand_name,
+      roleLabel(p.role),
+      p.status === 'suspended' ? 'Suspended' : 'Active',
+    ]
+      .filter(Boolean)
+      .join(' · ');
+    const warning = el('deact-warning');
+    const text = lastAdminWarning(p);
+    warning.textContent = text ?? '';
+    warning.hidden = text === null;
+    const note = el<HTMLInputElement>('deact-note');
+    note.value = '';
+    show('deact-error', false);
+    show('deact-overlay', true);
+    note.focus();
+  }
 
   // Where the decision on this queue entry would actually land (Decision
   // 6.142). admin_partner_review_queue asks partner_notification_recipients
@@ -361,36 +545,56 @@ import Portal from '../layouts/Portal.astro';
 
     const partners = el('ad-partners');
     partners.innerHTML = '';
-    for (const p of body.partners as Array<Record<string, any>>) {
+    partnerRows = body.partners as PartnerRow[];
+    for (const p of partnerRows) {
+      // Decision 6.152: 'deactivated' is terminal, so the row carries a badge
+      // instead of Suspend / Reactivate, greyed like a closed inquiry.
+      const deactivated = p.status === 'deactivated';
       const tr = document.createElement('tr');
-      tr.className = 'border-b border-slate-100';
+      tr.className = 'border-b border-slate-100' + (deactivated ? ' text-slate-400' : '');
       const mark = (ok: boolean) => (ok ? '✓' : '·');
+      const statusCell = deactivated
+        ? `<span class="rounded-full bg-slate-200 px-2.5 py-0.5 text-xs font-medium text-slate-700">${DEACTIVATED_BADGE_TEXT}</span>`
+        : esc(p.status);
       tr.innerHTML = `
         <td class="py-2 pr-4"><span class="font-mono">${esc(p.code ?? '')}</span> <span class="text-xs text-slate-500">${esc(p.brand_name ?? '')}</span></td>
         <td class="py-2 pr-4">${esc(p.contact_name)} <span class="text-xs text-slate-500">${esc(p.contact_email)}</span></td>
-        <td class="py-2 pr-4">${p.status}</td>
+        <td class="py-2 pr-4">${statusCell}</td>
         <td class="py-2 pr-4">${mark(p.agreements.terms)}</td>
         <td class="py-2 pr-4">${mark(p.agreements.brand_license)}</td>
         <td class="py-2 pr-4">${mark(p.agreements.content_policy)}</td>`;
       const actions = document.createElement('td');
-      actions.className = 'py-2';
-      const flip = document.createElement('button');
-      const suspending = p.status === 'active';
-      flip.textContent = suspending ? 'Suspend' : 'Reactivate';
-      flip.className = 'rounded-md border border-slate-300 px-2 py-1 text-xs hover:bg-slate-100';
-      flip.addEventListener('click', async () => {
-        const res2 = await callFnJson<Record<string, any>>('admin_set_partner_status', {
-          partner_account_id: p.id,
-          status: suspending ? 'suspended' : 'active',
-        }).catch((err) => ({ status: String(err) }));
-        if (res2.status === 'ok') {
-          toast(suspending ? 'Suspended (sessions revoked).' : 'Reactivated.');
-          await load();
-        } else {
-          toast(`Failed (${res2.status}).`);
-        }
-      });
-      actions.appendChild(flip);
+      actions.className = 'py-2 space-x-2 whitespace-nowrap';
+      if (!deactivated) {
+        const flip = document.createElement('button');
+        const suspending = p.status === 'active';
+        flip.textContent = suspending ? 'Suspend' : 'Reactivate';
+        flip.className = 'rounded-md border border-slate-300 px-2 py-1 text-xs hover:bg-slate-100';
+        flip.addEventListener('click', async () => {
+          const res2 = await callFnJson<Record<string, any>>('admin_set_partner_status', {
+            partner_account_id: p.id,
+            status: suspending ? 'suspended' : 'active',
+          }).catch((err: unknown) => ({ status: err instanceof Error ? err.message : String(err) }));
+          if (res2.status === 'ok') {
+            toast(suspending ? 'Suspended (sessions revoked).' : 'Reactivated.');
+            await load();
+          } else if (res2.status === 'deactivated') {
+            // The 409 admin_set_partner_status answers for a deactivated login:
+            // it was closed after this page loaded.
+            toast('That login has been deactivated, so it can no longer be suspended or reactivated.');
+            await load();
+          } else {
+            toast(`Failed (${res2.status}).`);
+          }
+        });
+        actions.appendChild(flip);
+
+        const deactivate = document.createElement('button');
+        deactivate.textContent = 'Deactivate';
+        deactivate.className = 'rounded-md border border-rose-200 bg-white px-2 py-1 text-xs text-rose-700 hover:bg-rose-50';
+        deactivate.addEventListener('click', () => openDeactivate(p));
+        actions.appendChild(deactivate);
+      }
       tr.appendChild(actions);
       partners.appendChild(tr);
     }
@@ -450,6 +654,54 @@ import Portal from '../layouts/Portal.astro';
     } else {
       toast(`Publish failed (${res.status ?? JSON.stringify(res)}).`);
     }
+  });
+
+  el('deact-cancel').addEventListener('click', closeDeactivate);
+  el('deact-overlay').addEventListener('click', (e) => {
+    if (e.target === el('deact-overlay')) closeDeactivate();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !el('deact-overlay').hidden) closeDeactivate();
+  });
+
+  // Step two of two, then the one call. p_partner_account_id and p_note are the
+  // two parameters admin_deactivate_partner_login defines (migration
+  // 20260922000000); the note lands in the admin audit row.
+  el('deact-go').addEventListener('click', async () => {
+    if (!deactTarget) return;
+    const target = deactTarget;
+    const name = loginName(target);
+    if (!confirm(`Deactivate ${name} for good? Sign-in and every session end now, and this cannot be undone.`)) return;
+    const go = el<HTMLButtonElement>('deact-go');
+    go.disabled = true;
+    show('deact-error', false);
+    const note = el<HTMLInputElement>('deact-note').value.trim();
+    const res = await rpc<Record<string, any>>('admin_deactivate_partner_login', {
+      p_partner_account_id: target.id,
+      p_note: note === '' ? null : note,
+    }).catch((err: unknown): Record<string, any> => ({
+      status: 'raised',
+      message: (err instanceof Error ? err.message : String(err)).replace(/^admin_deactivate_partner_login: /, ''),
+    }));
+    go.disabled = false;
+    if (res.status === 'raised') {
+      // The panel is still up, so the reason belongs inside it.
+      const error = el('deact-error');
+      error.textContent = deactRaisedText(String(res.message ?? ''));
+      error.hidden = false;
+      return;
+    }
+    closeDeactivate();
+    if (res.status === 'ok') {
+      const kept = Number(res.acceptances_kept ?? 0);
+      toast(
+        `${name} is deactivated. Sign-in and every session ended, and ${kept} agreement acceptance record${kept === 1 ? ' was' : 's were'} kept.`,
+      );
+    } else {
+      toast(DEACT_STATUS_TEXT[String(res.status)] ?? `Deactivation did not go through (${res.status}). The list is refreshed.`);
+    }
+    await load();
+    if (res.status === 'ok' && res.brand_has_active_admin === false) partnersWarning(noAdminLeftText(target));
   });
 
   void requireSession().then(load).catch((err) => {

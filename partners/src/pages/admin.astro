@@ -563,7 +563,7 @@ import Portal from '../layouts/Portal.astro';
         ? `<span class="rounded-full bg-slate-200 px-2.5 py-0.5 text-xs font-medium text-slate-700">${DEACTIVATED_BADGE_TEXT}</span>`
         : esc(p.status);
       tr.innerHTML = `
-        <td class="py-2 pr-4"><span class="font-mono">${esc(p.code ?? '')}</span> <span class="text-xs text-slate-500">${esc(p.brand_name ?? '')}</span></td>
+        <td class="py-2 pr-4"><span class="font-mono">${esc(p.default_code ?? p.code ?? '')}</span> <span class="text-xs text-slate-500">${esc(p.brand_name ?? '')}</span></td>
         <td class="py-2 pr-4">${esc(p.contact_name)} <span class="text-xs text-slate-500">${esc(p.contact_email)}</span></td>
         <td class="py-2 pr-4">${statusCell}</td>
         <td class="py-2 pr-4">${mark(p.agreements.terms)}</td>

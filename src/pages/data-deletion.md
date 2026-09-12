@@ -7,7 +7,7 @@ description: "How to delete your FitCreature account and the data associated wit
 # Data Deletion Request
 
 Effective Date: May 28, 2026
-Last Updated: September 11, 2026
+Last Updated: September 12, 2026
 
 You have the right to delete your account and your personal data at any time. This page explains how.
 
@@ -50,7 +50,7 @@ Most of your personal data never reaches our servers in the first place. Your fu
 
 A small amount of information may be retained after deletion, in accordance with our Privacy Policy:
 
-- Battle records on other players' side: battles you fought remain in your opponents' history, but your identity is replaced with an anonymous "[deleted user]" placeholder that contains no information identifying you (no email, no display name).
+- Battle records and activity items on other players' side: battles you fought remain in your opponents' history, and items on another player's activity feed that involved you (a gift you sent them, a thank-you you sent, a workout they tagged you in) remain on their feed, but your identity is replaced with an anonymous "[deleted user]" placeholder that contains no information identifying you (no email, no display name, no creature name).
 - Purchase transaction records: we keep the record of each purchase (transaction reference, product, and amount) with the link to your account removed, as the financial record we are required to keep for tax, accounting, and fraud-prevention purposes. Apple and Google also keep their own records of the purchases they processed, under their policies.
 - Support correspondence: emails and support messages you have sent us may remain in our support mailbox as a record of our correspondence; they are not automatically deleted with your account.
 - Anonymized and aggregated data that cannot be used to identify you (for example, statistics about overall app usage).

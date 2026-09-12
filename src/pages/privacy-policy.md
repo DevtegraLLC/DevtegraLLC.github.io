@@ -7,7 +7,7 @@ description: "How Devtegra collects, uses, and shares information across devtegr
 # Privacy Policy
 
 Effective Date: May 28, 2026
-Last Updated: September 10, 2026
+Last Updated: September 11, 2026
 
 This Privacy Policy describes how Devtegra, LLC ("Devtegra," "we," "us," or "our") collects, uses, and shares information when you use our websites at devtegra.com (including our partner portal at partners.devtegra.com) and our mobile applications, including FitCreature (collectively, the "Services").
 
@@ -22,7 +22,7 @@ Devtegra is a software development company operating as Devtegra, LLC, based in 
 Before the legal detail, here is what matters most:
 
 - We collect only the data needed to run your account and power the FitCreature game layer.
-- Your workouts, health data, body metrics, food entries, and progress photos are processed and stored only on your device. None of them is uploaded to our servers.
+- Your workouts, health data, body metrics, and progress photos are processed and stored only on your device. None of them is uploaded to our servers.
 - If you opt in to location, your device converts your location into a coarse area code covering an area roughly 5 kilometers across before anything leaves your phone. We never receive or store your precise GPS coordinates.
 - FitCreature shows advertising to users without an ad-free subscription, served by Google AdMob. Ads are non-personalized: they are not based on your behavior across other apps or websites. See Section 5.2 for exactly what Google receives.
 - We do not sell your personal data.
@@ -39,15 +39,15 @@ You can request deletion of your account and associated data at any time from wi
 - Communications. Emails or support messages you send us. We use these to respond to your inquiries.
 - Beta program signup. If you sign up to be a FitCreature beta tester at devtegra.com/beta, we store your first and last name, the email address you enter, which mobile platform you selected (iPhone, Android, or both), whether you use a fitness tracker, and which types of exercise you identify with (for example walking, running, cycling, weight training, fitness classes, yoga, or sport practice). We use your name and email to contact you about the beta, your platform to prioritize invites, and your fitness-tracker and exercise answers to invite a well-rounded mix of testers so we can find issues specific to how different people train. This information is used only to run the beta program and never affects the app or gameplay. To limit abuse of the signup form we store a salted, one-way hash of your IP address for rate limiting; the raw IP address is not stored. Your address stays unconfirmed until you tap the link in a confirmation email. You can ask us to remove it at any time at contact.us@devtegra.com, and we delete the beta list once the beta program ends.
 
-Your workout log itself (exercises, sets, reps, weights, durations, and notes), your exercise template library, your body metrics, and any food entries are stored only on your device and are never uploaded to our servers. See Section 3.4.
+Your workout log itself (exercises, sets, reps, weights, durations, and notes), your exercise template library, and your body metrics are stored only on your device and are never uploaded to our servers. See Section 3.4.
 
 ### 3.2 Health and Fitness Data (Only If You Opt In)
 
 With your permission through Apple Health (HealthKit) or Google Health Connect, FitCreature reads the following health data from your device: sleep, steps, heart rate, active calories, body weight, body-fat percentage, and workouts recorded by other apps (including the distance, pace, duration, and route of cardio workouts).
 
-All of this happens on your device. We compute your creature's mood and battle stats locally and never send your health or workout data to our servers to do it. We use this data only to reflect your daily activity in your creature's mood, to count cardio workouts (walks, hikes, runs, rides, swims) toward your creature's Endurance stat, and to show you reports and your per-workout heart-rate summary. We also write your manually logged workouts back to Apple Health or Health Connect so your training shows up in one place; we never write back workouts we imported from another app.
+All of this happens on your device. We compute your creature's mood and battle stats locally and never send your health or workout data to our servers to do it. We use this data to count workouts recorded by other apps toward your training in the game (cardio workouts such as walks, hikes, runs, rides, and swims also count toward your creature's Endurance stat), to compare the heart rate recorded during your workouts over time for your creature's Improvement stat, to check whether you met in-game goals that use it (such as your daily move goal or a weekly sleep or step challenge), and to show you reports and your per-workout heart-rate summary. We also write your manually logged workouts back to Apple Health or Health Connect so your training shows up in one place; we never write back workouts we imported from another app.
 
-None of your health or fitness data is uploaded to our servers. Your workouts, sleep, steps, heart rate, active calories, and body metrics are processed entirely on your device. Only the resulting battle-stat scores (general 0 to 1 ratings used for matchmaking, described in Section 3.3) and a coarse, approximate area for Gym Zones ever leave your device.
+None of your health or fitness data is uploaded to our servers. Your workouts, sleep, steps, heart rate, active calories, and body metrics are processed entirely on your device. Only values your device derives from this data leave it, never the records or measurements themselves: your battle-stat scores and the progress signals described in Section 3.3, some of which are based on your health data. If you opt in to location, a coarse area code for Gym Zones also leaves your device.
 
 We never use any health data for advertising, marketing, or data-mining, and we never share it with third parties for those purposes.
 
@@ -55,9 +55,9 @@ We never use any health data for advertising, marketing, or data-mining, and we 
 
 When you use the Services, the following is sent to and stored on our servers:
 
-- Battle-stat scores. Your device computes eight battle-stat scores from your training, each a general rating between 0 and 1 (for example, an endurance rating), plus which stats are currently active. Only these derived scores are sent to our servers, where they are used to pair you with battle opponents and to run battles. The scores cannot be turned back into your workouts, health data, or any underlying measurement. Battle matchmaking never uses your location.
-- Progress signals. So the game can grant rewards without reading your health data, the app sends small derived signals: your current and longest training-streak length, whether a given day had a workout, progress numbers for an active challenge, dates bridged by a streak freeze, reward claims (for example, that you met your daily move goal, completed a daily quest, or finished watching a rewarded ad), and the milestone events shown in your friends' activity feeds (for example, that you set a new personal record). These signals never include your workout contents, exercise names, health measurements, or body data.
-- Approximate location (optional, off by default). If you enable location, your device first snaps the GPS fix to a grid of roughly 150 meters as a temporary on-device step, then converts it into a coarse area code covering an area roughly 5 kilometers across. Only that coarse area code is sent to and stored on our servers. We use it to place you in a regional Gym Zone and to run regional leaderboards. Once you have been placed in a regional Gym Zone, the app stops sending this area code; no location signal leaves your device again unless you need to be placed in a zone again. Your exact GPS coordinates are never stored or transmitted, battle matchmaking never uses your location, and no business or advertiser ever receives your location from us.
+- Battle-stat scores. Your device computes eight battle-stat scores from your training, each a general rating between 0 and 1 (for example, an endurance rating), plus which stats are currently active. Only these derived scores are sent to our servers, where they are used to pair you with battle opponents, to run battles, and to rank Gym Zone leaderboards (regional, national, and worldwide) by one of these scores. The scores cannot be turned back into your workouts, health data, or any underlying measurement. Battle matchmaking never uses your location.
+- Progress signals. So the game can grant rewards without reading your health data, the app sends small derived values: your current and longest training-streak length and the date of your most recent workout; whether a given day had a workout, and which days of the current week counted as training days; the number of workout entries you logged on a given day and whether any of them counts toward the game, used to award workout XP; while your creature is still an egg, the number of days on which you finished a workout, used to hatch it; dates bridged by a streak freeze; which achievements you have unlocked and when; progress numbers for an active challenge, including whether you met a weekly sleep, step, or body-logging goal (for example, how many nights you slept at least 7 hours, on how many rest days you reached your step goal, or whether you logged a body weight that week); reward claims (for example, that you met your daily move goal, completed a daily quest, created or followed a planned workout, or finished watching a rewarded ad); and the milestone events shown in your friends' activity feeds (for example, that you set a new personal record). These signals never include your workout contents, exercise names, weights, or health or body measurements.
+- Approximate location (optional, off by default). If you enable location, your device first snaps the GPS fix to a grid of roughly 150 meters as a temporary on-device step, then converts it into a coarse area code covering an area roughly 5 kilometers across. Only that coarse area code is sent to and stored on our servers. We use it to place you in a regional Gym Zone and in the national Gym Zone for its country, to run Gym Zone leaderboards, and to choose which partner business cards you see (see Section 5.4). Anyone placed in a regional Gym Zone is also placed in the worldwide Gym Zone, which is the same for every player. Once you have been placed in a regional Gym Zone, the app stops sending this area code; no location signal leaves your device again unless you need to be placed in a zone again. Your exact GPS coordinates are never stored or transmitted, battle matchmaking never uses your location, and no business or advertiser ever receives your location from us.
 - Region selection. When you set or change your Gym Zone region by typing a city or zip code, the text you enter is sent to our mapping provider (OpenStreetMap) to find your general area. We store only the resulting approximate zone, not the city or zip you typed.
 - Push notification token. When you enable push notifications, your device is assigned a registration token (a device-level identifier) through Firebase Cloud Messaging (a Google service); on Apple devices, notifications are relayed through Apple's Push Notification service (APNs). This token is stored on our servers and associated with your account, and we use it solely to deliver notifications you have enabled, such as battle results, season updates, and account alerts. We never use it to track you across apps or for advertising. You can disable notifications at any time in your device settings.
 - Game activity. Creature state, battle history, season progress, cosmetic inventory, and your friend connections. We use this to run the game layer.
@@ -68,7 +68,7 @@ When you use the Services, the following is sent to and stored on our servers:
 
 The following either never leaves your device or is never collected at all:
 
-- Your full workout log (exercises, sets, reps, weights, durations, and notes), your exercise template library (the exercises you set up, with their names and notes), your body metrics (weight, body-fat percentage, measurements), and any food or nutrition entries. These are stored only on your device and are never uploaded to our servers.
+- Your full workout log (exercises, sets, reps, weights, durations, and notes), your exercise template library (the exercises you set up, with their names and notes), and your body metrics (weight, body-fat percentage, measurements). These are stored only on your device and are never uploaded to our servers.
 - All of your health data (sleep, steps, heart rate, active calories) and your per-workout heart-rate summaries. None of it is uploaded to our servers.
 - Progress photos and exercise photos. Your progress photos, and any photos you attach to a logged exercise, are stored only on your device. They are never uploaded to our servers.
 - Workout GPS route maps. Routes on imported outdoor workouts are shown only on your device and never leave it.
@@ -76,15 +76,15 @@ The following either never leaves your device or is never collected at all:
 - Precise GPS coordinates. Your device converts any location into a coarse, approximate-area code before anything leaves the device. Your exact coordinates are never stored or transmitted.
 - Your login token. Held in your device's secure storage (iOS Keychain or Android Keystore-backed storage); it is never uploaded to our servers.
 
-Because this data exists only on your device, it is not stored on our servers and cannot be restored by us if your device is lost. It is included in your device's encrypted backup (iCloud or Android backup) if you have that enabled; restoring that backup restores this data.
+Because this data exists only on your device, it is not stored on our servers and cannot be restored by us if your device is lost. If you have your device's encrypted backup (iCloud or Android backup) turned on, a completed backup includes the app's on-device database (your workout log, template library, equipment-setup preferences, health data, and body metrics), the settings the app keeps on your device (for example, your units and your daily calorie and protein targets), and your exercise photos, and restoring it brings them back (Android skips its cloud backup while the app's data is over Android's size limit). Progress photo image files are left out of device backups, so a restore does not bring the pictures back. Each photo's details (such as its date, pose, notes, and the body weight and training goal recorded with it) are saved in the on-device database with your other data, so a backup includes them. Your login token is not restored to a new device: Android backups leave it out, and on iOS it can be restored only to the same device it was backed up from. After restoring onto a new device, you sign in again.
 
 ## 4. How We Use Your Information
 
 We use the information we collect to:
 
 - Provide, maintain, and improve the Services, including keeping your account and game state available when you sign in.
-- Run the FitCreature game layer. Your battle stats are computed on your device; our servers use only the submitted scores to pair you with opponents, run battles, and show results. Our servers also apply plausibility checks to submitted scores to protect fair play.
-- Form regional Gym Zones from coarse area codes so you can appear on regional leaderboards. Location is never used for battle matchmaking.
+- Run the FitCreature game layer. Your battle stats are computed on your device; our servers use only the submitted scores to pair you with opponents, run battles, show results, and rank Gym Zone leaderboards (by one of these scores, with recent battle wins breaking ties). Our servers also apply plausibility checks to submitted scores to protect fair play.
+- Form regional Gym Zones from coarse area codes, place each member of a regional zone in the national Gym Zone for that zone's country and in the worldwide Gym Zone, and run the leaderboards for those zones. We also use the center of your regional zone to choose which partner business cards you see (see Section 5.4). Location is never used for battle matchmaking.
 - Deliver push notifications you have enabled.
 - Show advertising to users without an ad-free subscription (see Section 5.2), and grant rewards you claim from optional rewarded ads.
 - Manage subscriptions, gifts, and purchases, including validating transactions with Apple and Google.
@@ -126,9 +126,9 @@ If we ever enable personalized ads, we will update this policy first and ask for
 
 Some information is visible to other FitCreature users by design:
 
-- Your username, display name, creature appearance, and public profile stats are visible on leaderboards, battle recaps, and friend lists.
+- Other users know you by your creature, never by your username or display name. Other signed-in users can find your creature's name and number (for example, Blaze#0042) by searching for its name, unless one of you has blocked the other. Your friends see your creature's name and number, type, level, and challenger tier, along with your current streak, the date of your last workout, and whether your stash of streak freezes is full. On each Gym Zone leaderboard, members of that zone see its top-ranked players, each with their rank and creature name (without the number). In battles and battle recaps, your opponent sees your creature (its type, evolution stage, challenger tier, and customized appearance) and which side won each compared stat and by roughly how much; someone who battles you sees your creature's name only if you are already friends or you appear on one of their Gym Zone leaderboards. If you used another player's invite code, that player sees your creature's name and level.
 - If you add a partner business's location as a friend in the app and the business accepts you, your creature can appear on that location's member board. The business can show the board on screens at the location, where anyone there can see it. The board lists a limited number of members (currently 20) and shows each one's position, creature name and number (for example, Blaze#0042), and creature type, along with how many members the location has. Members are placed in order of battles won over the past seven days, and ties go to whoever has been a member of that location longer. The board never shows your username, display name, email, level, streak, stats, or number of wins. It is updated at least once a day and whenever a member joins or leaves. If you remove the location from your friends list, block it, or delete your account, you come off its board at once; a screen already showing the board picks up the change at its next refresh, within about an hour.
-- Your Gym Zone association is visible to users in the same zone, unless you hide it in settings.
+- Your Gym Zone association is visible to users in the same zone.
 - Your friends may see milestone events in their activity feed, for example that you set a new personal record or extended a training streak. These events never name the exercise and never include weights, measurements, or any health data.
 - Your exact workout contents (specific exercises, sets, weights, reps) are never visible to other users.
 
@@ -168,7 +168,7 @@ We retain your information for as long as your account is active or as needed to
 - Anonymized or aggregated data that cannot be used to identify you may be retained for analytics.
 - Limited records may be retained longer where required by law (for example, financial records for tax or fraud-prevention purposes).
 
-Data that lives only on your device (your workout log, exercise templates, equipment-setup preferences, health data, body metrics, food entries, and photos) is under your control: deleting the app, or deleting your account from within the app, removes it from your device.
+Data that lives only on your device (your workout log, exercise templates, equipment-setup preferences, health data, body metrics, and photos) is under your control: deleting the app, or deleting your account from within the app, removes it from your device. If your device's backup (iCloud or Android backup) was made before you deleted your account or the app, the copy of this data in that backup stays until the backup is replaced or you delete it. Progress photo image files are left out of those backups; each photo's details (such as its date, pose, notes, and the body weight and training goal recorded with it) are included.
 
 You can request account deletion at any time. See Section 8.
 
@@ -178,7 +178,7 @@ We use industry-standard safeguards to protect your data, which may include:
 
 - Encryption of communication between the app and our servers in transit (HTTPS/TLS).
 - Encryption of data stored on our backend at rest.
-- Storage of authentication tokens in your device's secure storage (Keychain on iOS, EncryptedSharedPreferences on Android).
+- Storage of authentication tokens in your device's secure storage (Keychain on iOS, Android Keystore-backed encrypted storage on Android).
 - Row-Level Security on our database so users can access only their own data.
 - Hashing of passwords; we do not store plaintext passwords.
 

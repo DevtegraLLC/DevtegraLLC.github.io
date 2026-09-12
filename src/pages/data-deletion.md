@@ -7,7 +7,7 @@ description: "How to delete your FitCreature account and the data associated wit
 # Data Deletion Request
 
 Effective Date: May 28, 2026
-Last Updated: September 10, 2026
+Last Updated: September 11, 2026
 
 You have the right to delete your account and your personal data at any time. This page explains how.
 
@@ -44,7 +44,7 @@ When you submit a verified deletion request, we will delete from our active syst
 - Your subscription records and push notification tokens
 - Your in-app feedback
 
-Most of your personal data never reaches our servers in the first place. Your full workout log (exercises, sets, reps, weights, session dates, notes), your exercise template library and equipment-setup preferences, your health data (sleep, steps, heart rate, active calories), your body metrics, any food entries, progress photos, exercise photos, and workout GPS route maps are stored only on your device. There is nothing for us to delete on our side. Deleting your account from within the app erases this data from that device; deleting the app removes anything that remains.
+Most of your personal data never reaches our servers in the first place. Your full workout log (exercises, sets, reps, weights, session dates, notes), your exercise template library and equipment-setup preferences, your health data (sleep, steps, heart rate, active calories), your body metrics, progress photos, exercise photos, and workout GPS route maps are stored only on your device. There is nothing for us to delete on our side. Deleting your account from within the app erases this data from that device; deleting the app removes anything that remains. If your device's backup (iCloud or Android backup) was made before you deleted your account or the app, the copy of this data in that backup stays until the backup is replaced or you delete it. Progress photo image files are left out of those backups; each photo's details (such as its date, pose, notes, and the body weight and training goal recorded with it) are included.
 
 ## What We May Retain
 

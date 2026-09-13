@@ -7,7 +7,7 @@ description: "How FitCreature handles consumer health data under the Washington 
 # Consumer Health Data Privacy Policy
 
 Effective Date: July 3, 2026
-Last Updated: September 11, 2026
+Last Updated: September 12, 2026
 
 This Consumer Health Data Privacy Policy is provided by Devtegra, LLC ("Devtegra," "we," "us," or "our") under the Washington My Health My Data Act. It applies to consumer health data handled by our FitCreature mobile application.
 
@@ -47,7 +47,7 @@ If you are a Washington consumer, you have the right to:
 
 - Confirm whether we are collecting, sharing, or selling consumer health data about you, and to access that data, including a list of all third parties and affiliates with whom we have shared or to whom we have sold it and an active contact address for each (as stated above, there are none).
 - Withdraw your consent to our collection and sharing of your consumer health data. You can turn off health access at any time in the app's settings and your device's health-permission settings, and turn off location in your device settings.
-- Delete your consumer health data. Deleting your account in the app (or requesting deletion at devtegra.com/data-deletion) deletes the consumer health data described above that is stored on our servers. Data stored only on your device is removed by deleting your account in the app or deleting the app. If your device's backup (iCloud or Android backup) was made before then, the copy in that backup stays until the backup is replaced or you delete it. Deletion requests also extend to data held in our backups and archives, which are purged on our backup rotation schedule and in any event within six months, and we will notify any applicable third party (as stated above, there are none).
+- Delete your consumer health data. Deleting your account in the app (or requesting deletion at devtegra.com/data-deletion) deletes the consumer health data described above that is stored on our servers. Data stored only on your device is removed by deleting your account in the app or deleting the app. Workouts the app wrote to Apple Health or Health Connect for you are kept by that service, not by FitCreature, and can stay there until you delete them there, and a file you exported or shared from the app stays wherever you saved or sent it. If your device's backup (iCloud or Android backup) was made before then, the copy in that backup stays until the backup is replaced or you delete it. Deletion requests also extend to data held in our backups and archives, which are purged on our backup rotation schedule and in any event within six months, and we will notify any applicable third party (as stated above, there are none).
 
 To exercise any of these rights, email contact.us@devtegra.com with the subject line "Consumer Health Data Request" from the email address associated with your account, or use the in-app deletion feature. We may need to verify your identity before acting on a request. We will respond within 45 days of receiving a verifiable request; where reasonably necessary, we may extend once by an additional 45 days and will tell you if that happens.
 

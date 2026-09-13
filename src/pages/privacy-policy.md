@@ -120,7 +120,7 @@ None of your own FitCreature data is shared with the ad system: your health data
 
 Subscribers, and friends they gift the ad-free tier to, are not shown ads. If you choose to watch an optional rewarded ad to earn in-game currency, we record that claim to grant the reward and enforce daily limits.
 
-If we ever enable personalized ads, we will update this policy first and ask for the consent required in your region before any personalized ad is shown.
+Ads in FitCreature are always non-personalized. The app never asks for Apple's permission to track you (App Tracking Transparency), so on iPhone and iPad, iOS does not give the app or Google your device's advertising identifier. Google may still receive another device identifier that is limited to this app or to apps from the same developer, which Google may use for advertising and analytics.
 
 ### 5.3 Other Users
 

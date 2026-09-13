@@ -10,6 +10,7 @@
     "test": "npm run build && node tests/portal.test.mjs"
   },
   "dependencies": {
+    "@rive-app/webgl2": "2.42.1",
     "@supabase/supabase-js": "^2.49.0",
     "@tailwindcss/vite": "^4.1.0",
     "astro": "^5.10.0",

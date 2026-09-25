@@ -7,7 +7,7 @@ description: "How to delete your FitCreature account and the data associated wit
 # Data Deletion Request
 
 Effective Date: May 28, 2026
-Last Updated: September 12, 2026
+Last Updated: September 24, 2026
 
 You have the right to delete your account and your personal data at any time. This page explains how.
 
@@ -45,6 +45,7 @@ When you submit a verified deletion request, we will delete from our active syst
 - Your social connections within the app, including any partner business locations you added as a friend, and any subscription gift you granted or received. Leaving a partner location this way takes your creature off that location's members list and member board at once; a screen already showing the board at the location picks up the change at its next refresh, within about an hour
 - Your subscription records and push notification tokens
 - Your in-app feedback
+- Cheers you gave on friends' activity feed items
 
 Most of your personal data never reaches our servers in the first place. Your full workout log (exercises, sets, reps, weights, session dates, notes), your exercise template library and equipment-setup preferences, your health data (sleep, steps, heart rate, active calories), your body metrics, progress photos, exercise photos, and workout GPS route maps are stored only on your device. There is nothing for us to delete on our side. Deleting your account from within the app erases this data from that device; deleting the app removes anything that remains in the app. Workouts the app wrote to Apple Health or Health Connect, and files you exported or shared, are described under "What We May Retain" below. If your device's backup (iCloud or Android backup) was made before you deleted your account or the app, the copy of this data in that backup stays until the backup is replaced or you delete it. Progress photo image files are left out of those backups; each photo's details (such as its date, pose, notes, and the body weight and training goal recorded with it) are included.
 

@@ -221,12 +221,15 @@ const SCAN_ENDPOINT =
         }
         if (data.status !== 'ok') return;
         if (data.code_type === 'user') {
+          // Promise only the invitee's own welcome reward. The code owner's
+          // payout is capped (Decision 6.170 in the app repo), so this page
+          // cannot know whether the owner is paid for this signup.
           document.getElementById('join-headline').textContent = "You've been invited.";
           document.getElementById('join-blurb').textContent =
             'Someone wants you training beside them in FitCreature, the fitness RPG ' +
             'where every real workout shapes an evolving creature. This is their ' +
-            "referral code. Enter it when you create your account and you'll both " +
-            'earn in-game rewards.';
+            'referral code. Enter it when you create your account and a welcome ' +
+            'reward waits for you.';
         } else if (data.code_type === 'partner') {
           if (typeof data.partner_name === 'string' && data.partner_name.length > 0) {
             document.getElementById('join-headline').textContent =

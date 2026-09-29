@@ -7,7 +7,7 @@ description: "The terms that govern your use of Devtegra's website and mobile ap
 # Terms of Service
 
 Effective Date: May 28, 2026
-Last Updated: September 10, 2026
+Last Updated: September 28, 2026
 
 Welcome to Devtegra. These Terms of Service ("Terms") are a binding agreement between you and Devtegra, LLC ("Devtegra," "we," "us," or "our") governing your use of our website at devtegra.com and our mobile applications, including FitCreature (collectively, the "Services").
 
@@ -74,7 +74,7 @@ FitCreature offers optional in-app purchases for cosmetic items and progression-
 
 ### 5.2 Payment
 
-All in-app purchases are processed by Apple (App Store) or Google (Google Play) under their respective terms. Devtegra does not directly receive your payment card information. Refunds are handled according to the policies of the store where you made the purchase.
+All in-app purchases are processed by Apple (App Store) or Google (Google Play) under their respective terms. Devtegra does not directly receive your payment card information. Refunds are handled according to the policies of the store where you made the purchase. Section 5.4 describes what happens in the app when a purchase is refunded.
 
 ### 5.3 Battle Pass and Seasonal Content
 
@@ -83,6 +83,8 @@ Some purchases unlock access to a seasonal Battle Pass, premium cosmetics, or XP
 ### 5.4 In-App Currencies and No Refunds for Earned Content
 
 FitCreature includes two in-app currencies. "Flex" is a soft currency obtained through play (training, battles, achievements, optional rewarded ads, and similar) and cannot be purchased directly. "Power Bites" are a premium currency available through in-app purchase. Power Bites can be converted to Flex within the app; this conversion is one-way, and Flex can never be converted back into Power Bites. Flex, Power Bites, cosmetics, creature state, and XP have no cash value, are non-transferable, and are not redeemable for any real-world money, goods, or services. We do not provide refunds for in-app currency or cosmetics except as required by law or the applicable app store's refund policy.
+
+Refunds of in-app purchases. If Apple or Google refunds, voids, or revokes a payment you made for Power Bites or for Premium (for example after a refund request or a chargeback), we take back the Power Bites that payment added to your balance. For a Premium payment, those are the Power Bites delivered for the period it paid for. If only part of a payment is refunded, you keep the Power Bites you received up to the share of the payment that was not refunded, and we take back only the rest; for a Premium payment, that share is measured against all the Power Bites its paid period includes, whether or not they were delivered yet. If your balance does not cover what is taken back, because some of those Power Bites were already spent or converted to Flex, the rest is recorded as Power Bites owed. Your next Power Bites purchases and Premium Power Bites grants pay off the amount owed first, before anything is added to your balance, and the app shows any amount owed in the Power Bites store. Nothing is locked while an amount is owed: you keep the items, cosmetics, and Flex you already have, and you can keep playing and spending the Power Bites you hold. If the store later reverses the refund, we give back the Power Bites the refund took back, paying off any amount still owed first. This applies to purchases and Premium payments whose Power Bites were first added to your account on or after [DATE THE RULE TAKES EFFECT].
 
 ### 5.5 Premium Subscription (Auto-Renewing)
 
@@ -93,8 +95,8 @@ FitCreature offers an optional auto-renewing subscription ("Premium"), available
 - Cancellation. You can cancel at any time in your device's subscription settings (App Store subscriptions on Apple devices, Google Play subscriptions on Android). Cancellation takes effect at the end of the current billing period; you keep Premium benefits until then. Deleting the app does not cancel a subscription.
 - Free trials and offers. If a free trial or introductory offer is available, its terms are shown before you subscribe. Unless you cancel at least 24 hours before the trial ends, the subscription converts to a paid subscription. Where a trial is free, the monthly Power Bites grant begins with your first paid subscription month.
 - Price changes. If the subscription price changes, the store will notify you under its rules and, where required, ask for your consent before charging the new price.
-- Refunds. Subscription refunds are handled by Apple or Google under the store's refund policies. If a subscription payment is refunded, revoked, or fails, Premium benefits (including any gifted benefit under Section 5.6) end.
-- Ending Premium. When a subscription ends for any reason, ad removal, the monthly Power Bites grant, and Battle Pass premium access stop for future periods. Power Bites already granted and rewards already earned remain subject to Section 5.4.
+- Refunds. Subscription refunds are handled by Apple or Google under the store's refund policies. If a subscription payment is refunded, revoked, or fails, Premium benefits (including any gifted benefit under Section 5.6) end. Section 5.4 describes what happens to the Power Bites a refunded payment delivered.
+- Ending Premium. When a subscription ends for any reason, ad removal, the monthly Power Bites grant, and Battle Pass premium access stop for future periods. Power Bites already granted and rewards already earned remain subject to Section 5.4, except that Power Bites delivered for a refunded payment are taken back as described there.
 
 ### 5.6 Friend Gift (Ad-Free Sharing)
 

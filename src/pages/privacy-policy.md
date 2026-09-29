@@ -7,7 +7,7 @@ description: "How Devtegra collects, uses, and shares information across devtegr
 # Privacy Policy
 
 Effective Date: May 28, 2026
-Last Updated: September 24, 2026
+Last Updated: September 28, 2026
 
 This Privacy Policy describes how Devtegra, LLC ("Devtegra," "we," "us," or "our") collects, uses, and shares information when you use our websites at devtegra.com (including our partner portal at partners.devtegra.com) and our mobile applications, including FitCreature (collectively, the "Services").
 
@@ -34,7 +34,7 @@ You can request deletion of your account and associated data at any time from wi
 ### 3.1 Information You Provide Directly
 
 - Account information. You sign in with your Apple or Google account. We receive and store your email address and a display name taken from that account: the name you choose to share at your first Apple sign-in, your Google profile name, or the first part of your email address. Because it comes from your Apple or Google account, this display name is often your real name. We also store a username. If you ever create an account with an email and password, the password is stored only as a hash; we never store it in plain text.
-- Timezone. The app records your device's timezone so that daily features (streaks, daily quests, daily goals) reset on your local day.
+- Timezone. The app records your device's timezone so that daily features (streaks, daily quests, daily goals) reset on your local day. So that a daily reward cannot be earned twice by switching timezones, our servers accept a change of your timezone at most once in a set period (currently 20 hours) and store the time of the most recent accepted change (only that one, not a history of changes). A change sent sooner is not applied, and your account keeps its earlier timezone until a change is accepted.
 - Feedback and reports. If you send in-app feedback, we store the category, title, and message you write, plus your app version. To limit abuse of the feedback channel we store a salted, one-way hash of your IP address; the raw IP address is not stored with your feedback. If you report another user, we store the reason you select, any details you add, and where in the app the report was made.
 - Communications. Emails or support messages you send us. We use these to respond to your inquiries.
 - Beta program signup. If you sign up to be a FitCreature beta tester at devtegra.com/beta, we store your first and last name, the email address you enter, which mobile platform you selected (iPhone, Android, or both), whether you use a fitness tracker, and which types of exercise you identify with (for example walking, running, cycling, weight training, fitness classes, yoga, or sport practice). We use your name and email to contact you about the beta, your platform to prioritize invites, and your fitness-tracker and exercise answers to invite a well-rounded mix of testers so we can find issues specific to how different people train. This information is used only to run the beta program and never affects the app or gameplay. To limit abuse of the signup form we store a salted, one-way hash of your IP address for rate limiting; the raw IP address is not stored. Your address stays unconfirmed until you tap the link in a confirmation email. You can ask us to remove it at any time at contact.us@devtegra.com, and we delete the beta list once the beta program ends.

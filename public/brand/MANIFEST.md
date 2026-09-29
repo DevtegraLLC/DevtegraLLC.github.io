@@ -48,5 +48,5 @@ Print pieces compose in the LOGO palette (warm dark ground + red/orange accents 
 ## Keeping app-derived parts current
 
 - **App icon**: whenever the app icon changes, run `scripts/sync_brand_assets.sh` in the FitCreature repo — it copies the current iOS 1024 master here and regenerates the 512. Commit this repo after.
-- **QR files**: when a new campaign code goes live, generate its files into `qr/` (`deno run --allow-write --allow-read --allow-env scripts/campaign_qr.ts <CODE> --out <this repo>/public/brand/qr` from the FitCreature repo; procedure in its F89 runbook).
+- **QR files**: when a new campaign code goes live, generate its files into `qr/` (from the FitCreature repo root: `deno run --config supabase/functions/deno.json --frozen --no-prompt --allow-write=<this repo>/public/brand/qr scripts/campaign_qr.ts <CODE> --out <this repo>/public/brand/qr`; the QR packages come from FitCreature's locked Edge Functions workspace, and the only permission is writing the output folder; procedure in its F89 runbook).
 - **Partner logos are NOT here**: they belong to partners (served from the app's storage bucket, used under each partner's brand license).

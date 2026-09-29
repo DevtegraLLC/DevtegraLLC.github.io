@@ -78,6 +78,11 @@ e = await run('3CGNJZF6', { ok: true, status: 'ok', code_type: 'user' });
 check('user: referred block shown', e['join-referred'].hidden === false, '');
 check('user: invite headline', e['join-headline'].textContent === "You've been invited.", e['join-headline'].textContent);
 check('user: note stays hidden', e['join-unknown-note'].hidden === true, 'note leaked');
+// The owner's payout is capped (Decision 6.170 in the app repo): the invitee
+// is promised only their own welcome reward, never a reward for the owner.
+check('user: blurb promises only the invitee reward',
+  /welcome reward/.test(e['join-blurb'].textContent) && !/\bboth\b/i.test(e['join-blurb'].textContent),
+  e['join-blurb'].textContent);
 
 // 3. Promo code -> campaign framing.
 e = await run('FCTT2026', { ok: true, status: 'ok', code_type: 'promo' });

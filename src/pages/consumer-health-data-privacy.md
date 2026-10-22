@@ -7,7 +7,7 @@ description: "How FitCreature handles consumer health data under the Washington 
 # Consumer Health Data Privacy Policy
 
 Effective Date: July 3, 2026
-Last Updated: September 13, 2026
+Last Updated: October 22, 2026
 
 This Consumer Health Data Privacy Policy is provided by Devtegra, LLC ("Devtegra," "we," "us," or "our") under the Washington My Health My Data Act. It applies to consumer health data handled by our FitCreature mobile application.
 
@@ -35,7 +35,7 @@ FitCreature collects the following categories of consumer health data. Except wh
 
 None. We do not share consumer health data with third parties or affiliates, and we do not sell consumer health data. We use service providers that process data on our behalf under contractual restrictions (our backend hosting provider holds the consumer health data described above that is stored on our servers); they are not permitted to use it for their own purposes.
 
-Some of the derived values described in Section 1 are shown to other users of the app, and only with your consent given in the app: friends you add can see your training streak and your milestone events (a new personal record, training with a buddy, or reaching a new level) if you choose to show them, which is a separate choice from your training consent, and a friend can get a nudge when your streak is about to end; a battle opponent sees which of the rolled game scores you won and by roughly how much, never the scores themselves; and members of your Gym Zone see your rank on its leaderboard. They never see your workouts, exercise names, weights, or health or body measurements.
+Some of the derived values described in Section 1 are shown to other users of the app, and only with your consent given in the app: friends you add can see your training streak and your milestone events (a new personal record, training with a buddy, reaching a new level, or reaching tier 10, 20, or 30 of the Battle Pass) if you choose to show them, which is a separate choice from your training consent, and a friend can get a nudge when your streak is about to end; a battle opponent sees which of the rolled game scores you won and by roughly how much, never the scores themselves; and members of your Gym Zone see your rank on its leaderboard. They never see your workouts, exercise names, weights, or health or body measurements.
 
 Partner businesses whose locations you add as a friend in the app do not receive any of the consumer health data listed in Section 1.
 

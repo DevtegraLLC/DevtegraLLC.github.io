@@ -7,7 +7,7 @@ description: "The terms that govern your use of Devtegra's website and mobile ap
 # Terms of Service
 
 Effective Date: May 28, 2026
-Last Updated: September 10, 2026
+Last Updated: October 22, 2026
 
 Welcome to Devtegra. These Terms of Service ("Terms") are a binding agreement between you and Devtegra, LLC ("Devtegra," "we," "us," or "our") governing your use of our website at devtegra.com and our mobile applications, including FitCreature (collectively, the "Services").
 
@@ -62,6 +62,7 @@ When using the Services, you agree not to:
 - Attempt to access accounts or data that do not belong to you, or interfere with the normal operation of the Services.
 - Use automated tools (bots, scripts, scrapers) to interact with the Services except as explicitly permitted.
 - Generate fraudulent or automated interactions with advertising in the app, including repeatedly clicking ads or using automation to view rewarded ads.
+- Abuse purchases, refunds, or gifts, for example by requesting a refund of Power Bites after spending them on a gift for another player.
 - Use the Services for any unlawful purpose or in violation of any applicable law or regulation.
 
 We may flag, review, or remove content that violates these rules. We may also restrict or remove accounts that repeatedly violate these Terms.
@@ -70,7 +71,7 @@ We may flag, review, or remove content that violates these rules. We may also re
 
 ### 5.1 Cosmetic and Vanity-Only Monetization
 
-FitCreature offers optional in-app purchases for cosmetic items and progression-vanity items (such as XP boosts and convenience items like streak protection) only. Purchases are cosmetic or vanity and never affect battle outcomes, matchmaking, creature battle stats, or any competitive aspect of the game ("no pay-to-win"). The systems that compute your battle stats read only your workouts, including exercise sessions imported with your permission from Apple Health or Google Health Connect, and never any purchase or currency data.
+FitCreature offers optional in-app purchases for cosmetic items and progression-vanity items (such as XP Food, which raises the XP a creature earns for a limited time, and convenience items like streak protection) only. Purchases are cosmetic or vanity and never affect battle outcomes, matchmaking, creature battle stats, or any competitive aspect of the game ("no pay-to-win"). The systems that compute your battle stats read only your workouts, including exercise sessions imported with your permission from Apple Health or Google Health Connect, and never any purchase or currency data.
 
 ### 5.2 Payment
 
@@ -78,11 +79,11 @@ All in-app purchases are processed by Apple (App Store) or Google (Google Play) 
 
 ### 5.3 Battle Pass and Seasonal Content
 
-Some purchases unlock access to a seasonal Battle Pass, premium cosmetics, or XP boosts. Seasonal content is available for a limited time. Rewards you earn within a season remain yours after the season ends, but new purchases may no longer be available once a season concludes.
+FitCreature runs a seasonal Battle Pass. Each season runs for the period shown in the app, and its rewards unlock at tiers you reach by earning XP in the app. The free track is open to everyone. The premium track is unlocked with Power Bites at the price shown in the app, or as part of Premium (Section 5.5). You may also spend Power Bites to skip tiers. Rewards you have earned but not claimed when a season ends are added to your account automatically. If a reward is an item you already own, you receive Flex instead, in the amount shown in the app. While a season runs, an item it offers as a reward is not sold in the Shop; it may return to the Shop after the season. Seasonal content is available for a limited time. Rewards you earn within a season remain yours after the season ends, but new purchases may no longer be available once a season concludes. Battle Pass rewards are cosmetic, vanity, or convenience only and never affect battle outcomes, matchmaking, or battle stats.
 
 ### 5.4 In-App Currencies and No Refunds for Earned Content
 
-FitCreature includes two in-app currencies. "Flex" is a soft currency obtained through play (training, battles, achievements, optional rewarded ads, and similar) and cannot be purchased directly. "Power Bites" are a premium currency available through in-app purchase. Power Bites can be converted to Flex within the app; this conversion is one-way, and Flex can never be converted back into Power Bites. Flex, Power Bites, cosmetics, creature state, and XP have no cash value, are non-transferable, and are not redeemable for any real-world money, goods, or services. We do not provide refunds for in-app currency or cosmetics except as required by law or the applicable app store's refund policy.
+FitCreature includes two in-app currencies. "Flex" is a soft currency obtained through play (training, battles, achievements, optional rewarded ads, and similar) and cannot be purchased directly. "Power Bites" are a premium currency available through in-app purchase. Power Bites can be converted to Flex within the app; this conversion is one-way, and Flex can never be converted back into Power Bites. Flex, Power Bites, cosmetics, creature state, and XP have no cash value, are non-transferable (except a Battle Pass Premium gift sent through the app as described in Section 5.7), and are not redeemable for any real-world money, goods, or services. We do not provide refunds for in-app currency or cosmetics except as required by law or the applicable app store's refund policy.
 
 ### 5.5 Premium Subscription (Auto-Renewing)
 
@@ -100,7 +101,11 @@ FitCreature offers an optional auto-renewing subscription ("Premium"), available
 
 An active Premium subscriber may share an ad-free benefit with one friend at a time within the app. The gift conveys ad removal only; it does not include Power Bites, Battle Pass access, or any other benefit, and the recipient pays nothing. The recipient must accept the gift in the app. The gift ends automatically when the subscriber's Premium ends, if the subscriber revokes or reassigns it, or if the recipient starts their own qualifying subscription (which frees the subscriber's gift slot). Reassigning a gift may be subject to a short cooldown shown in the app. The gift is a discretionary feature of Premium, has no cash value, and may be modified or discontinued.
 
-### 5.7 Advertising and Rewarded Ads
+### 5.7 Battle Pass Premium Gifts
+
+You may gift Battle Pass Premium for the current season to a friend you have accepted in the app, paying with your own Power Bites at the price shown in the app. A gift can be sent only while a season is running, only to a friend who does not already have Premium for that season, and only once your account has existed for the period shown in the app. Your device's screen lock (fingerprint, face, or passcode) confirms each gift on your device, and you choose a message from the ones the app offers; there is no free-text message. The recipient receives Premium for that season right away. A gift cannot be exchanged, transferred, returned, or reversed, including after either of you removes or blocks the other or deletes their account. A refund of the Power Bites purchase used for a gift is handled by the store under its policies and only for the person who made that purchase; the recipient keeps the gift. If Power Bites purchases are refunded after gifts are sent, we may limit or disable gifting on that account. Gifting is a discretionary feature, has no cash value, and may be modified or discontinued.
+
+### 5.8 Advertising and Rewarded Ads
 
 Users without an ad-free benefit are shown advertising in parts of the app, served by a third-party ad network as described in our Privacy Policy. The app may also offer optional rewarded ads: if you choose to watch one, you receive a stated amount of Flex, subject to daily limits shown or enforced in the app. Rewarded amounts and limits may change. Advertising never uses your health, workout, or location data, and watching or not watching ads never affects battle outcomes or battle stats.
 

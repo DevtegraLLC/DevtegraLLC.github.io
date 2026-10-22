@@ -7,7 +7,7 @@ description: "How to delete your FitCreature account and the data associated wit
 # Data Deletion Request
 
 Effective Date: May 28, 2026
-Last Updated: October 2, 2026
+Last Updated: October 22, 2026
 
 You have the right to delete your account and your personal data at any time. This page explains how.
 
@@ -40,9 +40,9 @@ We may ask for additional information to verify your identity before processing 
 When you submit a verified deletion request, we will delete from our active systems:
 
 - Your account and profile information (username, display name, email, and any password hash)
-- Your creature, battle stats, currency balances, cosmetic inventory, and season progress
+- Your creature, battle stats, currency balances, cosmetic inventory, XP Food, and season progress
 - Your Gym Zone memberships
-- Your social connections within the app, including any partner business locations you added as a friend, and any subscription gift you granted or received. Leaving a partner location this way takes your creature off that location's members list and member board at once; a screen already showing the board at the location picks up the change at its next refresh, within about an hour
+- Your social connections within the app, including any partner business locations you added as a friend, and any ad-free subscription gift you granted or received. Leaving a partner location this way takes your creature off that location's members list and member board at once; a screen already showing the board at the location picks up the change at its next refresh, within about an hour
 - Your subscription records and push notification tokens
 - Your in-app feedback
 - Cheers you gave on friends' activity feed items
@@ -53,7 +53,7 @@ Most of your personal data never reaches our servers in the first place. Your fu
 
 Some information may be retained after deletion, by us or by others, in accordance with our Privacy Policy:
 
-- Battle records, activity items, and currency records on other players' side: battles you fought remain in your opponents' history, items on another player's activity feed that involved you (a gift you sent them, a thank-you you sent, a workout they tagged you in) remain on their feed, and a friend's record of a streak freeze they gifted you remains in their currency history, but your identity is replaced with an anonymous "[deleted user]" placeholder that contains no information identifying you (no email, no display name, no creature name). The record of a reward another player earned in a battle against you, or when one of you used the other's invite code, also remains in their currency history, with nothing that points to you.
+- Battle records, activity items, and currency records on other players' side: battles you fought remain in your opponents' history, items on another player's activity feed that involved you (a gift you sent them, a thank-you you sent, a workout they tagged you in) remain on their feed, and a friend's record of a streak freeze they gifted you remains in their currency history, but your identity is replaced with an anonymous "[deleted user]" placeholder that contains no information identifying you (no email, no display name, no creature name). The record of a reward another player earned in a battle against you, or when one of you used the other's invite code, also remains in their currency history, with nothing that points to you. A Battle Pass Premium gift you sent or received remains in the other player's gift history, and the Power Bites spent on it remain in the sender's currency history, with nothing that points to you.
 - Copies on other players' phones: another player's app keeps what it last received from us (for example, your creature in their friends list) until it next connects to our servers, a notification already delivered to their phone stays there until they dismiss it, and a workout they logged with you keeps its tag, which no longer leads to your account.
 - Partner business records: if you added a partner business location as a friend, our log of actions a partner business takes in its portal keeps the entries for accepting you as a member, declining your request to join, or removing you, with nothing that points to you.
 - Purchase transaction records: we keep the record of each purchase (transaction reference, product, and amount) with the link to your account removed, as the financial record we are required to keep for tax, accounting, and fraud-prevention purposes. We also keep the notices Apple and Google send us about purchases and subscriptions (such as a renewal or a refund), with the kind of notice, the product, and the transaction references, and no link to your account. For a refunded subscription payment we also keep its order and purchase references, the product and plan, and the period it paid for, with no link to your account, for up to 60 days after that period ends. Deleting your account does not cancel a Premium subscription: cancel it in your device's subscription settings, or Apple or Google keeps billing you and sending us those notices. Apple and Google also keep their own records of the purchases they processed, under their policies.
